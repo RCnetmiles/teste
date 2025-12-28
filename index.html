@@ -1,849 +1,963 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LabSafe - Criador de Mapas de Risco</title>
-    <style>
-        :root {
-            --primary: #2c3e50;
-            --accent: #3498db;
-            --light: #ecf0f1;
-            --dark: #2c3e50;
-            --panel-bg: #f8f9fa;
-            --border: #bdc3c7;
-            
-            /* Cores de Risco (Padrão Brasileiro) */
-            --risk-bio: #8d6e63; /* Marrom */
-            --risk-chem: #e74c3c; /* Vermelho */
-            --risk-phys: #27ae60; /* Verde */
-            --risk-ergo: #f1c40f; /* Amarelo */
-            --risk-acci: #2980b9; /* Azul (Acidentes/Mecânico - opcional, mas comum) */
-        }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Criador de Mapas de Riscos - Laboratório (Offline)</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --panel:#0b1220;
+    --accent:#1d4ed8;
+    --muted:#94a3b8;
+    --card:#0f1724;
+    --danger:#ef4444;
+    --success:#10b981;
+    --toolbar-width:72px;
+    --sidebar-width:300px;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#071127 0%, #071a2a 100%);font-family:Inter,Segoe UI,system-ui,Roboto,Arial;color:#e6eef6;}
+  .app {
+    display:flex; height:100vh; width:100vw; overflow:hidden;
+  }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #ddd;
-            overflow: hidden; /* App-like feel */
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
+  /* Desktop layout */
+  .toolbar {
+    width:var(--toolbar-width); background:linear-gradient(180deg,#071a2a,#051024); padding:8px; box-sizing:border-box;
+    display:flex; flex-direction:column; gap:8px; align-items:center; border-right:1px solid rgba(255,255,255,0.03);
+  }
+  .toolbar button { width:48px; height:48px; border-radius:8px; border:0; background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .toolbar button.active{ background:rgba(255,255,255,0.03); color:var(--accent); box-shadow:0 4px 10px rgba(16,24,40,0.5); }
+  .main {
+    flex:1; display:flex; flex-direction:row; position:relative; overflow:hidden;
+  }
+  .left-palette {
+    width:var(--sidebar-width); background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); padding:12px; box-sizing:border-box; border-right:1px solid rgba(255,255,255,0.03);
+    display:flex; flex-direction:column; gap:10px; min-width:220px;
+  }
+  .topbar {
+    height:56px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; background:transparent; border-bottom:1px solid rgba(255,255,255,0.02);
+  }
+  .canvas-wrap { position:relative; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.03)); }
+  canvas#drawCanvas { background: #ffffff; border-radius:6px; box-shadow: 0 6px 18px rgba(2,6,23,0.6); touch-action: none; }
+  .right-panel { width:360px; background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); padding:12px; box-sizing:border-box; border-left:1px solid rgba(255,255,255,0.03); min-width:260px; overflow:auto; }
+  .section { background:rgba(255,255,255,0.02); padding:10px; border-radius:8px;}
+  h3{margin:6px 0;color:#cfe4ff;font-size:14px}
+  .symbol-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .symbol{width:64px;height:64px;border-radius:8px;background:rgba(255,255,255,0.01);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;padding:6px}
+  .symbol svg{width:36px;height:36px}
+  .muted{color:var(--muted);font-size:13px}
+  label{font-size:13px;color:var(--muted)}
+  select,input,textarea{width:100%;box-sizing:border-box;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  .row{display:flex;gap:8px}
+  .btn{padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:white;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+  .risk-item{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;margin-bottom:6px;background:rgba(255,255,255,0.01)}
+  .risk-dot{width:18px;height:18px;border-radius:50%}
+  .meta{font-size:12px;color:var(--muted)}
 
-        /* --- UI Layout --- */
-        header {
-            background-color: var(--primary);
-            color: white;
-            padding: 0 15px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 100;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
+  /* Mobile */
+  .mobile-top { display:none; position:fixed; top:8px; left:8px; z-index:50;}
+  .hamburger { width:44px;height:44px;background:rgba(0,0,0,0.4);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;border:0 }
+  .mobile-warning { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); padding:8px 12px;border-radius:8px; font-size:13px; display:none; z-index:60 }
+  .zoom-controls { position:fixed; right:12px; bottom:12px; display:flex; flex-direction:column; gap:8px; z-index:60 }
+  .zoom-controls button { width:46px;height:46px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:white }
 
-        h1 { font-size: 1.2rem; margin: 0; display: flex; align-items: center; gap: 10px; }
-        
-        .main-container {
-            display: flex;
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* --- Toolbar (Left) --- */
-        .toolbar {
-            width: 60px;
-            background-color: var(--primary);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 10px;
-            gap: 10px;
-            z-index: 90;
-            transition: transform 0.3s ease;
-        }
-
-        .tool-btn {
-            width: 40px;
-            height: 40px;
-            border: none;
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.2rem;
-            position: relative;
-        }
-
-        .tool-btn:hover { background: rgba(255,255,255,0.3); }
-        .tool-btn.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        
-        /* Tooltip */
-        .tool-btn::after {
-            content: attr(data-title);
-            position: absolute;
-            left: 50px;
-            background: #333;
-            color: white;
-            padding: 4px 8px;
-            font-size: 0.8rem;
-            border-radius: 4px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-        }
-        .tool-btn:hover::after { opacity: 1; }
-
-        /* --- Canvas Area --- */
-        #canvas-wrapper {
-            flex: 1;
-            background-color: #95a5a6;
-            position: relative;
-            overflow: hidden;
-            cursor: crosshair;
-        }
-        
-        canvas {
-            background-color: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.2);
-            display: block;
-            touch-action: none; /* Critical for custom gestures */
-        }
-
-        /* --- Properties Panel (Right) --- */
-        .properties-panel {
-            width: 250px;
-            background-color: var(--panel-bg);
-            border-left: 1px solid var(--border);
-            padding: 15px;
-            overflow-y: auto;
-            z-index: 90;
-            transition: transform 0.3s ease;
-        }
-
-        .panel-section { margin-bottom: 20px; }
-        .panel-title { font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px; color: var(--dark); }
-        
-        .form-group { margin-bottom: 10px; }
-        label { display: block; font-size: 0.9rem; margin-bottom: 4px; color: #555; }
-        input, select, textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-        button.action-btn {
-            width: 100%; padding: 8px; margin-top: 5px; cursor: pointer;
-            background: var(--accent); color: white; border: none; border-radius: 4px;
-        }
-        button.danger-btn { background: #e74c3c; }
-
-        /* --- Mobile Overlays & Responsiveness --- */
-        .hamburger { display: none; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
-        
-        .orientation-warning {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 1000; color: white;
-            display: none; justify-content: center; align-items: center; flex-direction: column; text-align: center;
-        }
-
-        /* Zoom Controls floating */
-        .zoom-controls {
-            position: absolute; bottom: 20px; right: 280px; /* offset for panel */
-            display: flex; gap: 5px; z-index: 80;
-        }
-        .zoom-btn { width: 30px; height: 30px; border: none; background: white; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; }
-
-        /* Media Queries */
-        @media (max-width: 768px) {
-            .hamburger { display: block; }
-            
-            .toolbar {
-                position: absolute; left: 0; top: 0; bottom: 0;
-                transform: translateX(-100%);
-            }
-            .toolbar.open { transform: translateX(0); }
-
-            .properties-panel {
-                position: absolute; right: 0; top: 0; bottom: 0;
-                transform: translateX(100%);
-                width: 280px;
-                box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-            }
-            .properties-panel.open { transform: translateX(0); }
-
-            .zoom-controls { right: 20px; bottom: 20px; }
-        }
-
-        @media screen and (orientation: portrait) and (max-width: 600px) {
-            .orientation-warning { display: flex; }
-        }
-
-        /* Print Styling */
-        @media print {
-            header, .toolbar, .properties-panel, .zoom-controls { display: none !important; }
-            body, .main-container { height: auto; overflow: visible; background: white; }
-            #canvas-wrapper { overflow: visible; background: white; }
-            canvas { box-shadow: none; border: 1px solid #000; max-width: 100%; }
-            
-            /* Add legend specifically for print */
-            #print-legend { display: block !important; margin-top: 20px; page-break-inside: avoid; }
-        }
-        #print-legend { display: none; padding: 20px; font-family: sans-serif; }
-        .legend-item { display: inline-flex; align-items: center; margin-right: 20px; margin-bottom: 10px; }
-        .legend-color { width: 20px; height: 20px; border-radius: 50%; margin-right: 5px; border: 1px solid #ccc;}
-    </style>
+  /* responsive */
+  @media (max-width:900px){
+    .left-palette{display:none}
+    .right-panel{display:none}
+    .toolbar{display:flex;flex-direction:row; height:64px; width:100%; position:fixed; bottom:0; left:0; gap:6px; padding:6px; z-index:60; justify-content:center}
+    .main { padding-bottom:72px }
+    .mobile-top{display:block}
+    .mobile-warning{display:block}
+    .canvas-wrap{padding:8px}
+  }
+  /* small helper */
+  .small{font-size:12px;color:var(--muted)}
+  .kbd{padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);font-size:12px}
+</style>
 </head>
 <body>
+<div class="app" id="appRoot" aria-live="polite">
+  <div class="toolbar" id="toolbar">
+    <button id="selectTool" title="Selecionar (V)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3l18 9-9 9L3 3z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="wallTool" title="Desenhar parede (W)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="doorTool" title="Adicionar porta (D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" stroke-width="1.5"/><path d="M9 3v18" stroke-width="1.5"/></svg></button>
+    <button id="benchTool" title="Adicionar bancada (B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="7" width="18" height="6" rx="1" stroke-width="1.5"/><path d="M3 15v3m18-3v3" stroke-width="1.2"/></svg></button>
+    <button id="hoodTool" title="Capela de exaustão (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h16v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6z" stroke-width="1.5"/><path d="M9 6h6v4H9z" stroke-width="1.5"/></svg></button>
+    <button id="riskTool" title="Marcar risco (R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9" stroke-width="1.5"/><path d="M12 8v4m0 4h.01" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    <button id="panTool" title="Mover / Pan (Space)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M2 12h20" stroke-width="1.5"/></svg></button>
+  </div>
 
-    <div class="orientation-warning" id="orientationWarning">
-        <div style="font-size: 3rem;">↻</div>
-        <p>Gire seu dispositivo para modo paisagem<br>para melhor experiência de desenho.</p>
-        <button style="margin-top:20px; padding:10px 20px;" onclick="document.getElementById('orientationWarning').style.display='none'">Ignorar</button>
-    </div>
-
-    <header>
-        <button class="hamburger" id="menuToggle">☰</button>
-        <h1>🔬 LabSafe <span style="font-size:0.8rem; opacity:0.8; font-weight:normal;">| Criador de Mapa de Risco</span></h1>
+  <div class="main">
+    <div class="left-palette" id="leftPalette" aria-hidden="false">
+      <div class="topbar">
         <div>
-            <button onclick="app.saveJSON()" class="tool-btn" style="width:auto; padding:0 10px; font-size:0.9rem;">💾 Salvar</button>
+          <strong>Mapa de Riscos - Laboratório</strong>
+          <div class="small">Offline · Sem dependências</div>
         </div>
-    </header>
+        <div class="small meta">v1.0</div>
+      </div>
 
-    <div class="main-container">
-        <div class="toolbar" id="mainToolbar">
-            <button class="tool-btn active" data-tool="select" data-title="Selecionar (V)" onclick="app.setTool('select')">👆</button>
-            <div style="width: 80%; height: 1px; background: rgba(255,255,255,0.2); margin: 5px 0;"></div>
-            <button class="tool-btn" data-tool="wall" data-title="Parede (W)" onclick="app.setTool('wall')">🪜</button>
-            <button class="tool-btn" data-tool="door" data-title="Porta (D)" onclick="app.setTool('door')">🚪</button>
-            <button class="tool-btn" data-tool="bench" data-title="Bancada (B)" onclick="app.setTool('bench')">🔲</button>
-            <button class="tool-btn" data-tool="hood" data-title="Capela/Equip (H)" onclick="app.setTool('hood')">💨</button>
-            <div style="width: 80%; height: 1px; background: rgba(255,255,255,0.2); margin: 5px 0;"></div>
-            <button class="tool-btn" data-tool="risk" data-title="Adicionar Risco (R)" onclick="app.setTool('risk')">⚠️</button>
-            <div style="flex:1"></div>
-            <button class="tool-btn" data-tool="properties" onclick="app.togglePanel()" id="mobilePropBtn" style="display:none;">⚙️</button>
+      <div class="section">
+        <h3>Paleta de símbolos</h3>
+        <div class="symbol-grid" id="symbolGrid">
+          <!-- symbols added by JS -->
         </div>
+        <div class="muted small">Clique em um símbolo, depois desenhe no canvas. Atalhos: V,W,D,B,H,R, Espaço para Pan.</div>
+      </div>
 
-        <div id="canvas-wrapper">
-            <canvas id="mainCanvas"></canvas>
-            <div class="zoom-controls">
-                <button class="zoom-btn" onclick="app.zoom(1.1)">+</button>
-                <button class="zoom-btn" onclick="app.resetZoom()">1:1</button>
-                <button class="zoom-btn" onclick="app.zoom(0.9)">-</button>
-            </div>
+      <div class="section">
+        <h3>Salvar / Carregar</h3>
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn" id="saveJsonBtn">Salvar JSON</button>
+          <button class="btn ghost" id="loadJsonBtn">Carregar</button>
         </div>
-
-        <div class="properties-panel" id="propPanel">
-            <div class="panel-section">
-                <div class="panel-title">Projeto</div>
-                <div class="form-group">
-                    <label>Nome do Laboratório</label>
-                    <input type="text" id="labName" value="Laboratório 01">
-                </div>
-                <button class="action-btn" onclick="app.exportImage()">📸 Exportar Imagem (PNG)</button>
-                <button class="action-btn" onclick="app.exportPDF()">📄 Imprimir / PDF</button>
-                <input type="file" id="fileInput" style="display:none" onchange="app.loadJSON(this)">
-                <button class="action-btn" style="background:var(--primary); margin-top:5px" onclick="document.getElementById('fileInput').click()">📂 Carregar Projeto</button>
-            </div>
-
-            <hr>
-
-            <div id="selectionProperties" style="display:none;">
-                <div class="panel-title">Propriedades do Item</div>
-                
-                <div class="form-group">
-                    <label>Rótulo (Opcional)</label>
-                    <input type="text" id="propLabel" oninput="app.updateSelection()">
-                </div>
-
-                <div id="riskProps" style="display:none;">
-                    <div class="form-group">
-                        <label>Tipo de Risco</label>
-                        <select id="riskType" onchange="app.updateSelection()">
-                            <option value="bio">Biológico (Marrom)</option>
-                            <option value="chem">Químico (Vermelho)</option>
-                            <option value="phys">Físico (Verde)</option>
-                            <option value="ergo">Ergonômico (Amarelo)</option>
-                            <option value="acci">Acidentes (Azul)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Intensidade / Tamanho</label>
-                        <select id="riskSize" onchange="app.updateSelection()">
-                            <option value="20">Pequeno</option>
-                            <option value="35">Médio</option>
-                            <option value="50">Grande</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Nível Biossegurança</label>
-                        <select id="riskNB" onchange="app.updateSelection()">
-                            <option value="">Nenhum</option>
-                            <option value="NB1">NB-1</option>
-                            <option value="NB2">NB-2</option>
-                            <option value="NB3">NB-3</option>
-                            <option value="NB4">NB-4</option>
-                        </select>
-                    </div>
-                </div>
-
-                <button class="danger-btn" onclick="app.deleteSelection()">🗑️ Excluir Item</button>
-            </div>
-            
-            <div id="noSelectionMsg" style="color:#777; font-style:italic; padding:10px 0;">
-                Selecione um item no mapa para editar suas propriedades.
-            </div>
+        <input type="file" id="loadJsonFile" accept="application/json" style="display:none"/>
+        <div style="margin-top:8px" class="row">
+          <button class="btn" id="exportPngBtn">Exportar PNG</button>
+          <button class="btn ghost" id="exportPdfBtn">Exportar PDF</button>
         </div>
+      </div>
+
+      <div class="section">
+        <h3>Configurações do mapa</h3>
+        <label>Nome do mapa</label>
+        <input id="mapName" placeholder="Ex: Laboratório de Microbiologia - Sala A">
+        <label>Escala (px = 1 m)</label>
+        <input id="mapScale" value="50" type="number" min="5" max="200">
+        <label>Data de criação</label>
+        <input id="mapDate" type="date">
+        <div style="margin-top:8px" class="row">
+          <button class="btn" id="newMapBtn">Novo Mapa</button>
+          <button class="btn ghost" id="clearBtn">Limpar Tudo</button>
+        </div>
+      </div>
     </div>
 
-    <div id="print-legend">
-        <h3>Legenda de Riscos</h3>
-        <div class="legend-item"><div class="legend-color" style="background:var(--risk-bio)"></div>Biológico</div>
-        <div class="legend-item"><div class="legend-color" style="background:var(--risk-chem)"></div>Químico</div>
-        <div class="legend-item"><div class="legend-color" style="background:var(--risk-phys)"></div>Físico</div>
-        <div class="legend-item"><div class="legend-color" style="background:var(--risk-ergo)"></div>Ergonômico</div>
-        <div class="legend-item"><div class="legend-color" style="background:var(--risk-acci)"></div>Acidentes</div>
-        <p>Gerado por LabSafe Digital - <span id="printDate"></span></p>
+    <div class="canvas-wrap">
+      <canvas id="drawCanvas" width="1400" height="900" role="img" aria-label="Canvas de desenho do mapa"></canvas>
+      <div style="position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index:40;">
+        <div id="cursorHint" class="small muted">Modo: <span id="currentMode">Selecionar</span></div>
+      </div>
+      <div class="mobile-top">
+        <button class="hamburger" id="hamburgerBtn" aria-label="Abrir menu">☰</button>
+      </div>
+      <div class="mobile-warning" id="orientWarn">Por favor, use em <strong>paisagem</strong> para melhor experiência.</div>
+      <div class="zoom-controls" id="zoomControls" aria-hidden="false">
+        <button id="zoomIn">＋</button>
+        <button id="zoomOut">－</button>
+        <button id="resetView">⤧</button>
+      </div>
     </div>
+
+    <div class="right-panel" id="rightPanel">
+      <div class="section">
+        <h3>Riscos identificados</h3>
+        <div id="riskList" style="max-height:380px; overflow:auto"></div>
+        <div style="margin-top:8px" class="muted small">Clique num risco no mapa para editar. Ordene e filtre por categoria.</div>
+        <div style="margin-top:8px" class="row">
+          <select id="filterCategory"><option value="">Todos</option><option value="biological">Biológicos</option><option value="chemical">Químicos</option><option value="physical">Físicos</option><option value="ergonomic">Ergonômicos</option></select>
+          <select id="filterNB"><option value="">Todos NB</option><option value="NB1">NB1</option><option value="NB2">NB2</option><option value="NB3">NB3</option><option value="NB4">NB4</option></select>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="section">
+        <h3>Legendas (cores)</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="row"><div class="risk-dot" style="background:#16a34a"></div><div class="small">Biológicos</div></div>
+          <div class="row"><div class="risk-dot" style="background:#ef4444"></div><div class="small">Químicos</div></div>
+          <div class="row"><div class="risk-dot" style="background:#f59e0b"></div><div class="small">Físicos</div></div>
+          <div class="row"><div class="risk-dot" style="background:#2563eb"></div><div class="small">Ergonômicos</div></div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="section">
+        <h3>Ajuda / Atalhos</h3>
+        <div class="muted small">
+          V: Selecionar · W: Parede · D: Porta · B: Bancada · H: Capela · R: Risco · Espaço: Pan · Ctrl+S: Salvar JSON · Ctrl+E: Exportar PNG
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for risk properties -->
+<div id="riskModal" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:120">
+  <div style="background:rgba(2,6,23,0.95); padding:18px; border-radius:10px; width:360px; box-shadow:0 10px 30px rgba(2,6,23,0.8);">
+    <h3 style="margin-top:0">Propriedades do Risco</h3>
+    <label>Categoria</label>
+    <select id="riskCategory">
+      <option value="biological">Biológicos</option>
+      <option value="chemical">Químicos</option>
+      <option value="physical">Físicos</option>
+      <option value="ergonomic">Ergonômicos</option>
+    </select>
+    <label style="margin-top:8px">Nível de Biossegurança (NB)</label>
+    <select id="riskNB"><option>NB1</option><option>NB2</option><option>NB3</option><option>NB4</option></select>
+    <label style="margin-top:8px">Título / Observação</label>
+    <input id="riskLabel" placeholder="Ex: Possível contaminação por amostras"/>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+      <button class="btn ghost" id="riskCancel">Cancelar</button>
+      <button class="btn" id="riskSave">Salvar</button>
+    </div>
+  </div>
+</div>
 
 <script>
-/**
- * LabSafe Core Logic
- * Uma aplicação vanilla JS estruturada para desenhar mapas de risco.
- */
-const app = (function() {
-    // --- Configurações e Estado ---
-    const canvas = document.getElementById('mainCanvas');
-    const ctx = canvas.getContext('2d');
-    const wrapper = document.getElementById('canvas-wrapper');
-    
-    // Cores
-    const colors = {
-        bio: '#8d6e63', chem: '#e74c3c', phys: '#27ae60', ergo: '#f1c40f', acci: '#2980b9',
-        wall: '#34495e', selection: '#3498db'
-    };
+/*
+  Arquitetura modular dentro de um único arquivo:
+  - Utils: funções utilitárias
+  - Storage: salvar/carregar JSON e localStorage
+  - Drawer: desenhar no canvas, elementos, seleção, pan/zoom e gestos
+  - RiskManager: manipular riscos, lista, filtragem, ligação entre risco e elementos
+  - Exporter: exportar PNG/JPG e abrir janela para impressão (PDF)
+  - UI: conectar eventos, atalhos, responsividade, hamburguer e warnings
+*/
 
-    let state = {
-        tool: 'select', // select, wall, door, bench, hood, risk
-        elements: [], // Array de objetos {id, type, x, y, ...}
-        selection: null, // ID do item selecionado
-        scale: 1,
-        panX: 0,
-        panY: 0,
-        isDragging: false,
-        isDrawing: false,
-        lastX: 0,
-        lastY: 0,
-        tempShape: null, // Shape sendo desenhado no momento
-        touchDistStart: 0 // Para pinch zoom
-    };
-
-    // --- Sistema de Renderização ---
-    function resize() {
-        canvas.width = wrapper.clientWidth;
-        canvas.height = wrapper.clientHeight;
-        render();
-    }
-
-    function toWorld(screenX, screenY) {
-        return {
-            x: (screenX - state.panX) / state.scale,
-            y: (screenY - state.panY) / state.scale
-        };
-    }
-
-    function toScreen(worldX, worldY) {
-        return {
-            x: (worldX * state.scale) + state.panX,
-            y: (worldY * state.scale) + state.panY
-        };
-    }
-
-    function render() {
-        // Limpar
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Grid Fundo
-        drawGrid();
-
-        ctx.save();
-        ctx.translate(state.panX, state.panY);
-        ctx.scale(state.scale, state.scale);
-
-        // Desenhar Elementos
-        [...state.elements, state.tempShape].forEach(el => {
-            if(!el) return;
-            drawElement(el);
-        });
-
-        // Desenhar Seleção (Borda)
-        if(state.selection) {
-            const el = state.elements.find(e => e.id === state.selection);
-            if(el) drawSelectionOutline(el);
-        }
-
-        ctx.restore();
-    }
-
-    function drawGrid() {
-        ctx.strokeStyle = '#e0e0e0';
-        ctx.lineWidth = 1;
-        const gridSize = 50 * state.scale;
-        const offsetX = state.panX % gridSize;
-        const offsetY = state.panY % gridSize;
-
-        ctx.beginPath();
-        for(let x = offsetX; x < canvas.width; x += gridSize) {
-            ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
-        }
-        for(let y = offsetY; y < canvas.height; y += gridSize) {
-            ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
-        }
-        ctx.stroke();
-    }
-
-    function drawElement(el) {
-        ctx.fillStyle = '#ccc';
-        ctx.strokeStyle = colors.wall;
-        ctx.lineWidth = 2;
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        if(el.type === 'wall') {
-            ctx.beginPath();
-            ctx.moveTo(el.x, el.y);
-            ctx.lineTo(el.ex, el.ey);
-            ctx.stroke();
-        } 
-        else if (el.type === 'bench') {
-            ctx.fillStyle = '#ecf0f1';
-            ctx.fillRect(el.x, el.y, el.w, el.h);
-            ctx.strokeRect(el.x, el.y, el.w, el.h);
-            if(el.label) { ctx.fillStyle='#555'; ctx.fillText(el.label, el.x + el.w/2, el.y + el.h/2); }
-        }
-        else if (el.type === 'hood') {
-            ctx.fillStyle = '#d5dbdb';
-            ctx.fillRect(el.x, el.y, el.w, el.h);
-            ctx.strokeRect(el.x, el.y, el.w, el.h);
-            // Simbolo de X
-            ctx.beginPath(); ctx.moveTo(el.x, el.y); ctx.lineTo(el.x+el.w, el.y+el.h); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(el.x+el.w, el.y); ctx.lineTo(el.x, el.y+el.h); ctx.stroke();
-            if(el.label) { ctx.fillStyle='black'; ctx.fillText(el.label, el.x + el.w/2, el.y - 10); }
-        }
-        else if (el.type === 'door') {
-            // Desenhar arco de porta simples
-            ctx.beginPath();
-            ctx.arc(el.x, el.y, el.w, 0, -Math.PI/2, true);
-            ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(el.x, el.y); ctx.lineTo(el.x, el.y - el.w); ctx.stroke(); // Linha reta
-            ctx.beginPath(); ctx.moveTo(el.x, el.y); ctx.lineTo(el.x + el.w, el.y); ctx.stroke(); // Base
-        }
-        else if (el.type === 'risk') {
-            const r = parseInt(el.size) || 20;
-            ctx.beginPath();
-            ctx.arc(el.x, el.y, r, 0, Math.PI * 2);
-            ctx.fillStyle = colors[el.riskType] || '#999';
-            ctx.globalAlpha = 0.7;
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
-            ctx.strokeStyle = '#fff';
-            ctx.stroke();
-            
-            // Texto NB
-            if(el.nb) {
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 12px Arial';
-                ctx.fillText(el.nb, el.x, el.y);
-            }
-        }
-    }
-
-    function drawSelectionOutline(el) {
-        ctx.strokeStyle = colors.selection;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        
-        let pad = 5;
-        if(el.type === 'wall') {
-            // Simplificação para linha
-            ctx.beginPath(); ctx.moveTo(el.x, el.y); ctx.lineTo(el.ex, el.ey); ctx.stroke();
-        } else if (el.type === 'risk') {
-            let r = parseInt(el.size) + pad;
-            ctx.strokeRect(el.x - r, el.y - r, r*2, r*2);
-        } else {
-            ctx.strokeRect(el.x - pad, el.y - pad, el.w + pad*2, el.h + pad*2);
-        }
-        ctx.setLineDash([]);
-    }
-
-    // --- Lógica de Ferramentas ---
-    function setTool(toolName) {
-        state.tool = toolName;
-        // Atualiza UI
-        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-        document.querySelector(`[data-tool="${toolName}"]`).classList.add('active');
-        state.selection = null;
-        updatePropPanel();
-        render();
-    }
-
-    function createId() { return Math.random().toString(36).substr(2, 9); }
-
-    // --- Input Handling ---
-    function handleStart(x, y) {
-        const world = toWorld(x, y);
-        state.lastX = x; 
-        state.lastY = y;
-
-        if (state.tool === 'select') {
-            // Hit testing básico
-            const hit = state.elements.slice().reverse().find(el => hitTest(el, world.x, world.y));
-            if(hit) {
-                state.selection = hit.id;
-                state.isDragging = true;
-                updatePropPanel();
-            } else {
-                state.selection = null;
-                state.isDragging = true; // Pan
-                updatePropPanel();
-            }
-        } else {
-            // Iniciar desenho
-            state.isDrawing = true;
-            if(state.tool === 'wall') {
-                state.tempShape = { type: 'wall', x: world.x, y: world.y, ex: world.x, ey: world.y };
-            } else if (state.tool === 'bench' || state.tool === 'hood') {
-                state.tempShape = { type: state.tool, x: world.x, y: world.y, w: 0, h: 0 };
-            }
-        }
-        render();
-    }
-
-    function handleMove(x, y) {
-        const world = toWorld(x, y);
-        
-        if (state.tool === 'select') {
-            if(state.isDragging) {
-                if(state.selection) {
-                    // Mover Elemento
-                    const el = state.elements.find(e => e.id === state.selection);
-                    const dx = (x - state.lastX) / state.scale;
-                    const dy = (y - state.lastY) / state.scale;
-                    el.x += dx; el.y += dy;
-                    if(el.type === 'wall') { el.ex += dx; el.ey += dy; }
-                } else {
-                    // Pan Canvas
-                    state.panX += x - state.lastX;
-                    state.panY += y - state.lastY;
-                }
-            }
-        } else if (state.isDrawing && state.tempShape) {
-            if(state.tool === 'wall') {
-                state.tempShape.ex = world.x;
-                state.tempShape.ey = world.y;
-            } else if (['bench', 'hood'].includes(state.tool)) {
-                state.tempShape.w = world.x - state.tempShape.x;
-                state.tempShape.h = world.y - state.tempShape.y;
-            }
-        }
-        
-        state.lastX = x;
-        state.lastY = y;
-        render();
-    }
-
-    function handleEnd() {
-        if(state.isDrawing && state.tempShape) {
-            // Finalizar forma
-            // Normalizar retângulos (largura negativa)
-            if(state.tempShape.w < 0) { state.tempShape.x += state.tempShape.w; state.tempShape.w *= -1; }
-            if(state.tempShape.h < 0) { state.tempShape.y += state.tempShape.h; state.tempShape.h *= -1; }
-            
-            // Adicionar apenas se tiver tamanho mínimo
-            if(Math.abs(state.tempShape.w) > 5 || Math.abs(state.tempShape.h) > 5 || state.tempShape.type === 'wall') {
-                state.tempShape.id = createId();
-                state.elements.push(state.tempShape);
-            }
-        } else if (state.tool === 'risk' && !state.isDragging && !state.isDrawing) {
-            // Click to add risk
-            const world = toWorld(state.lastX, state.lastY);
-            state.elements.push({
-                id: createId(),
-                type: 'risk',
-                x: world.x,
-                y: world.y,
-                size: 35,
-                riskType: 'bio',
-                nb: ''
-            });
-            // Auto selecionar novo risco
-            state.selection = state.elements[state.elements.length-1].id;
-            setTool('select');
-        } else if (state.tool === 'door' && !state.isDragging) {
-             const world = toWorld(state.lastX, state.lastY);
-             state.elements.push({
-                id: createId(),
-                type: 'door',
-                x: world.x,
-                y: world.y,
-                w: 40, h: 40 // raio
-            });
-            setTool('select');
-        }
-
-        state.isDragging = false;
-        state.isDrawing = false;
-        state.tempShape = null;
-        render();
-    }
-
-    function hitTest(el, x, y) {
-        if(el.type === 'risk') {
-            const r = parseInt(el.size);
-            const dist = Math.sqrt((x-el.x)**2 + (y-el.y)**2);
-            return dist <= r;
-        }
-        if(el.type === 'wall') {
-            // Distância ponto a segmento
-            const A = x - el.x; const B = y - el.y;
-            const C = el.ex - el.x; const D = el.ey - el.y;
-            const dot = A * C + B * D;
-            const len_sq = C * C + D * D;
-            let param = -1;
-            if (len_sq != 0) param = dot / len_sq;
-            let xx, yy;
-            if (param < 0) { xx = el.x; yy = el.y; }
-            else if (param > 1) { xx = el.ex; yy = el.ey; }
-            else { xx = el.x + param * C; yy = el.y + param * D; }
-            const dx = x - xx; const dy = y - yy;
-            return Math.sqrt(dx * dx + dy * dy) < 10;
-        }
-        // Rects (Bench, Hood, Door bbox)
-        let w = el.w; let h = el.h;
-        if(el.type === 'door') { w = el.w; h = el.w; } // Aproximação
-        return (x >= el.x && x <= el.x + w && y >= el.y && y <= el.y + h);
-    }
-
-    // --- UI Update & Propriedades ---
-    function updatePropPanel() {
-        const panel = document.getElementById('selectionProperties');
-        const empty = document.getElementById('noSelectionMsg');
-        
-        if(!state.selection) {
-            panel.style.display = 'none';
-            empty.style.display = 'block';
-            return;
-        }
-
-        panel.style.display = 'block';
-        empty.style.display = 'none';
-
-        const el = state.elements.find(e => e.id === state.selection);
-        
-        // Populate
-        document.getElementById('propLabel').value = el.label || '';
-        
-        const riskProps = document.getElementById('riskProps');
-        if(el.type === 'risk') {
-            riskProps.style.display = 'block';
-            document.getElementById('riskType').value = el.riskType;
-            document.getElementById('riskSize').value = el.size;
-            document.getElementById('riskNB').value = el.nb || '';
-        } else {
-            riskProps.style.display = 'none';
-        }
-    }
-
-    function updateSelection() {
-        const el = state.elements.find(e => e.id === state.selection);
-        if(!el) return;
-
-        el.label = document.getElementById('propLabel').value;
-        if(el.type === 'risk') {
-            el.riskType = document.getElementById('riskType').value;
-            el.size = document.getElementById('riskSize').value;
-            el.nb = document.getElementById('riskNB').value;
-        }
-        render();
-    }
-
-    function deleteSelection() {
-        if(state.selection && confirm('Deseja excluir este item?')) {
-            state.elements = state.elements.filter(e => e.id !== state.selection);
-            state.selection = null;
-            updatePropPanel();
-            render();
-        }
-    }
-
-    // --- Persistência e Exportação ---
-    function saveJSON() {
-        const data = {
-            version: "1.0",
-            timestamp: new Date().toISOString(),
-            labName: document.getElementById('labName').value,
-            elements: state.elements
-        };
-        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `MapaRisco_${data.labName}.json`;
-        a.click();
-    }
-
-    function loadJSON(input) {
-        const file = input.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-                state.elements = data.elements;
-                if(data.labName) document.getElementById('labName').value = data.labName;
-                state.selection = null;
-                render();
-                alert('Projeto carregado com sucesso!');
-            } catch(err) {
-                alert('Erro ao ler arquivo: ' + err);
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    function exportImage() {
-        // Redesenhar sem grid para exportação limpa
-        const tempCanvas = document.createElement('canvas');
-        // Calcular bounding box do desenho para não exportar tudo
-        // Por simplicidade, exportamos o tamanho atual do canvas, mas sem zoom
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        const tCtx = tempCanvas.getContext('2d');
-        
-        tCtx.fillStyle = 'white';
-        tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height);
-        
-        // Simular render no temp
-        // Para uma exportação perfeita, idealmente resetariamos o Pan/Scale
-        // Aqui faremos "o que se vê é o que se exporta"
-        tCtx.drawImage(canvas, 0, 0);
-        
-        const link = document.createElement('a');
-        link.download = `Mapa_${document.getElementById('labName').value}.png`;
-        link.href = tempCanvas.toDataURL();
-        link.click();
-    }
-
-    function exportPDF() {
-        document.getElementById('printDate').innerText = new Date().toLocaleDateString();
-        // Centraliza a visualização antes de imprimir
-        const oldScale = state.scale;
-        const oldPanX = state.panX;
-        // Tenta enquadrar (simples)
-        state.scale = Math.min(canvas.width / 1000, canvas.height / 800); // Zoom out um pouco
-        state.panX = 50;
-        state.panY = 50;
-        render();
-        
-        window.print();
-        
-        // Restaura
-        state.scale = oldScale;
-        state.panX = oldPanX;
-        render();
-    }
-
-    // --- Event Listeners Init ---
-    canvas.addEventListener('mousedown', e => handleStart(e.offsetX, e.offsetY));
-    canvas.addEventListener('mousemove', e => {
-        if(e.buttons === 1) handleMove(e.offsetX, e.offsetY);
-    });
-    canvas.addEventListener('mouseup', handleEnd);
-
-    // Touch Events
-    canvas.addEventListener('touchstart', e => {
-        e.preventDefault();
-        if(e.touches.length === 2) {
-            // Pinch start
-            state.touchDistStart = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
-        } else {
-            const rect = canvas.getBoundingClientRect();
-            handleStart(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-        }
-    }, {passive: false});
-
-    canvas.addEventListener('touchmove', e => {
-        e.preventDefault();
-        if(e.touches.length === 2) {
-            // Pinch Zoom Logic
-            const dist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
-            if(state.touchDistStart > 0) {
-                const delta = dist / state.touchDistStart;
-                state.scale *= delta;
-                state.touchDistStart = dist;
-                render();
-            }
-        } else {
-            const rect = canvas.getBoundingClientRect();
-            handleMove(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-        }
-    }, {passive: false});
-
-    canvas.addEventListener('touchend', e => {
-        if(e.touches.length === 0) handleEnd();
-    });
-
-    // Window Resize
-    window.addEventListener('resize', resize);
-    
-    // Zoom Wheel
-    canvas.addEventListener('wheel', e => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        state.scale *= delta;
-        render();
-    });
-
-    // Mobile Menus
-    document.getElementById('menuToggle').addEventListener('click', () => {
-        document.getElementById('mainToolbar').classList.toggle('open');
-        document.getElementById('propPanel').classList.remove('open');
-    });
-
-    document.getElementById('mobilePropBtn').addEventListener('click', () => {
-        document.getElementById('propPanel').classList.toggle('open');
-        document.getElementById('mainToolbar').classList.remove('open');
-    });
-
-    // Init
-    setTimeout(resize, 100);
-
-    // Public API
-    return {
-        setTool,
-        updateSelection,
-        deleteSelection,
-        saveJSON,
-        loadJSON,
-        exportImage,
-        exportPDF,
-        zoom: (f) => { state.scale *= f; render(); },
-        resetZoom: () => { state.scale = 1; state.panX=0; state.panY=0; render(); },
-        togglePanel: () => document.getElementById('propPanel').classList.toggle('open')
-    };
+/* ===================== Utils ===================== */
+const Utils = (function(){
+  return {
+    uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); },
+    nowISO(){ return new Date().toISOString(); },
+    download(filename, data, mime='application/json'){ const blob = new Blob([data], {type:mime}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); },
+    clamp(v,a,b){return Math.max(a, Math.min(b,v))}
+  }
 })();
+
+/* ===================== Storage ===================== */
+const Storage = (function(){
+  const KEY='mapa_riscos_v1';
+  function saveToLocal(map){
+    localStorage.setItem(KEY, JSON.stringify(map));
+  }
+  function loadFromLocal(){
+    const s = localStorage.getItem(KEY);
+    return s ? JSON.parse(s) : null;
+  }
+  function exportJSON(map){
+    const data = JSON.stringify(map, null, 2);
+    Utils.download((map.name||'mapa_riscos') + '.json', data, 'application/json');
+  }
+  return { saveToLocal, loadFromLocal, exportJSON };
+})();
+
+/* ===================== Drawer ===================== */
+const Drawer = (function(){
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let width = canvas.width, height = canvas.height;
+
+  // View transform for pan / zoom
+  let view = { x:0, y:0, scale:1 };
+
+  // Elements model
+  // Each element: { id, type:'wall'|'door'|'bench'|'hood', points:[], rect:{x,y,w,h} (optional), stroke,w }
+  let elements = [];
+  let selection = null; // {id, type}
+  // Risks stored separately
+  // hit testing helpers
+  function setSize(w,h){
+    width=w; height=h; canvas.width=Math.max(800,w); canvas.height=Math.max(500,h);
+    redraw();
+  }
+
+  function worldToScreen(p){
+    return { x: (p.x - view.x) * view.scale, y: (p.y - view.y) * view.scale };
+  }
+  function screenToWorld(p){
+    return { x: p.x / view.scale + view.x, y: p.y / view.scale + view.y };
+  }
+
+  // drawing primitives
+  function drawGrid(){
+    const step = 50;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.translate(-view.x*view.scale, -view.y*view.scale);
+    ctx.scale(view.scale, view.scale);
+    // subtle grid
+    ctx.beginPath();
+    for(let x=-2000;x<4000;x+=step) ctx.moveTo(x, -2000), ctx.lineTo(x, 4000);
+    for(let y=-2000;y<4000;y+=step) ctx.moveTo(-2000, y), ctx.lineTo(4000, y);
+    ctx.strokeStyle = 'rgba(8,12,20,0.03)';
+    ctx.lineWidth = 1/1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawElements(){
+    ctx.save();
+    ctx.translate(-view.x*view.scale, -view.y*view.scale);
+    ctx.scale(view.scale, view.scale);
+    elements.forEach(el=>{
+      if(el.type==='wall'){
+        ctx.beginPath();
+        ctx.moveTo(el.points[0].x, el.points[0].y);
+        for(let i=1;i<el.points.length;i++) ctx.lineTo(el.points[i].x, el.points[i].y);
+        ctx.strokeStyle = '#374151'; ctx.lineWidth = Math.max(2, 2);
+        ctx.stroke();
+      } else if(el.type==='door'){
+        // draw door as line with swing arc
+        const a = el.points[0], b = el.points[1];
+        ctx.beginPath();
+        ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+        ctx.strokeStyle = '#7c3aed'; ctx.lineWidth=2;
+        ctx.stroke();
+        // swing arc
+        const dx=b.x-a.x; const dy=b.y-a.y;
+        const ang = Math.atan2(dy,dx);
+        ctx.beginPath();
+        ctx.arc(a.x,a.y, 30, ang-1.2, ang+1.2);
+        ctx.strokeStyle='rgba(124,58,237,0.4)';
+        ctx.stroke();
+      } else if(el.type==='bench'){
+        ctx.beginPath();
+        ctx.rect(el.rect.x, el.rect.y, el.rect.w, el.rect.h);
+        ctx.fillStyle='rgba(99,102,241,0.14)'; ctx.fill();
+        ctx.strokeStyle='#6366f1'; ctx.stroke();
+      } else if(el.type==='hood'){
+        ctx.beginPath();
+        ctx.rect(el.rect.x, el.rect.y, el.rect.w, el.rect.h);
+        ctx.fillStyle='rgba(6,182,212,0.06)'; ctx.fill();
+        ctx.strokeStyle='#06b6d4'; ctx.stroke();
+        // label
+        ctx.fillStyle='#083344'; ctx.font='12px sans-serif';
+        ctx.fillText('CAPELA', el.rect.x+6, el.rect.y+16);
+      }
+      // selection outline
+      if(selection && selection.id===el.id){
+        if(el.rect){
+          ctx.save(); ctx.lineWidth=1; ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.strokeRect(el.rect.x-4, el.rect.y-4, el.rect.w+8, el.rect.h+8); ctx.restore();
+        } else if(el.points){
+          ctx.save(); ctx.lineWidth=2/ view.scale; ctx.strokeStyle='rgba(20,184,166,0.6)'; ctx.beginPath();
+          const p0 = el.points[0]; ctx.moveTo(p0.x,p0.y);
+          for(let i=1;i<el.points.length;i++) ctx.lineTo(el.points[i].x, el.points[i].y);
+          ctx.stroke(); ctx.restore();
+        }
+      }
+    });
+    ctx.restore();
+  }
+
+  // draw risks separately (with screen-space icons)
+  function drawRisks(risks){
+    ctx.save();
+    // risks: {id,x,y,category,nb,label}
+    risks.forEach(r=>{
+      const p = worldToScreen({x:r.x,y:r.y});
+      const size = 14*view.scale;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size, 0, Math.PI*2);
+      ctx.fillStyle = riskColor(r.category);
+      ctx.fill();
+      ctx.font = `${12*view.scale}px sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      const label = r.label || r.category;
+      ctx.fillText(r.nb, p.x + size + 4, p.y + (6*view.scale));
+    });
+    ctx.restore();
+  }
+
+  function riskColor(cat){
+    switch(cat){
+      case 'biological': return '#16a34a';
+      case 'chemical': return '#ef4444';
+      case 'physical': return '#f59e0b';
+      case 'ergonomic': return '#2563eb';
+      default: return '#94a3b8';
+    }
+  }
+
+  function redraw(risks){
+    // fast redraw pipeline
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawGrid();
+    drawElements();
+    if(risks) drawRisks(risks);
+  }
+
+  // element creation APIs (high level)
+  function addWall(p1,p2){
+    const el = { id: Utils.uid('wall'), type:'wall', points:[p1,p2] };
+    elements.push(el); return el;
+  }
+  function addDoor(p1,p2){
+    const el = { id: Utils.uid('door'), type:'door', points:[p1,p2] };
+    elements.push(el); return el;
+  }
+  function addBench(rect){ const el={id:Utils.uid('bench'),type:'bench',rect}; elements.push(el); return el; }
+  function addHood(rect){ const el={id:Utils.uid('hood'),type:'hood',rect}; elements.push(el); return el; }
+
+  function clearAll(){
+    elements=[]; selection=null;
+  }
+
+  function getElements(){ return elements; }
+  function setElements(arr){ elements = arr || []; }
+
+  function pickElementAtScreen(x,y){
+    // simple hit test: transform to world and test rects and proximity to lines
+    const p = screenToWorld({x,y});
+    // rects
+    for(let i=elements.length-1;i>=0;i--){
+      const el=elements[i];
+      if(el.rect){
+        if(p.x >= el.rect.x && p.x <= el.rect.x+el.rect.w && p.y >= el.rect.y && p.y <= el.rect.y+el.rect.h) return el;
+      } else if(el.points){
+        for(let j=0;j<el.points.length-1;j++){
+          const a=el.points[j], b=el.points[j+1];
+          const d = pointToSegmentDistance(p,a,b);
+          if(d < 8) return el;
+        }
+      }
+    }
+    return null;
+  }
+  function pointToSegmentDistance(p,a,b){
+    const vx=b.x-a.x, vy=b.y-a.y;
+    const wx=p.x-a.x, wy=p.y-a.y;
+    const c = (vx*wx + vy*wy) / (vx*vx + vy*vy);
+    const t = Math.max(0, Math.min(1, c));
+    const px = a.x + vx*t, py = a.y + vy*t;
+    const dx = p.x - px, dy = p.y - py;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
+  // view controls pan and zoom
+  function panBy(dx,dy){
+    view.x -= dx / view.scale; view.y -= dy / view.scale; redraw(window.__riskManager ? window.__riskManager.getRisks() : []);
+  }
+  function zoomBy(factor, cx, cy){
+    // zoom to point (screen coords)
+    cx = cx || canvas.width/2; cy = cy || canvas.height/2;
+    const before = screenToWorld({x:cx,y:cy});
+    view.scale = Utils.clamp(view.scale * factor, 0.3, 4);
+    const after = screenToWorld({x:cx,y:cy});
+    view.x += before.x - after.x; view.y += before.y - after.y;
+    redraw(window.__riskManager ? window.__riskManager.getRisks() : []);
+  }
+  function resetView(){
+    view = {x:0,y:0,scale:1}; redraw(window.__riskManager ? window.__riskManager.getRisks() : []);
+  }
+
+  // selection API
+  function selectElement(el){
+    selection = el ? { id:el.id, type:el.type } : null;
+    document.getElementById('currentMode').textContent = selection ? ('Selecionado: ' + el.type) : 'Nenhum';
+    redraw(window.__riskManager ? window.__riskManager.getRisks() : []);
+  }
+  function getSelection(){ return selection; }
+
+  // export as image (full canvas rendered at current scale)
+  function toDataURL(highDPI=false){
+    // create an offscreen canvas at original size * devicePixelRatio
+    const ratio = (highDPI ? 2 : 1) * (window.devicePixelRatio || 1);
+    const w = canvas.width * ratio, h = canvas.height * ratio;
+    const off = document.createElement('canvas'); off.width = w; off.height = h;
+    const c = off.getContext('2d'); c.scale(ratio,ratio);
+    // use current view and draw into offscreen via Drawer internals
+    // We'll reuse drawing but need to temporarily set temp canvas -> easiest: draw into main canvas style and copy; but to avoid flicker, we replicate draw functions minimally here:
+    // fill bg
+    c.fillStyle='#ffffff'; c.fillRect(0,0,off.width,off.height);
+    // draw grid lightly
+    c.save(); c.translate(-view.x*view.scale, -view.y*view.scale); c.scale(view.scale, view.scale);
+    c.beginPath();
+    const step = 50;
+    for(let x=-2000;x<4000;x+=step) c.moveTo(x, -2000), c.lineTo(x, 4000);
+    for(let y=-2000;y<4000;y+=step) c.moveTo(-2000, y), c.lineTo(4000, y);
+    c.strokeStyle = 'rgba(8,12,20,0.03)';
+    c.lineWidth = 1;
+    c.stroke();
+    c.restore();
+
+    // draw elements onto offscreen
+    c.save(); c.translate(-view.x*view.scale, -view.y*view.scale); c.scale(view.scale, view.scale);
+    elements.forEach(el=>{
+      if(el.type==='wall'){
+        c.beginPath(); c.moveTo(el.points[0].x, el.points[0].y); for(let i=1;i<el.points.length;i++) c.lineTo(el.points[i].x, el.points[i].y);
+        c.strokeStyle = '#374151'; c.lineWidth = 2; c.stroke();
+      } else if(el.type==='door'){
+        const a=el.points[0], b=el.points[1];
+        c.beginPath(); c.moveTo(a.x,a.y); c.lineTo(b.x,b.y); c.strokeStyle='#7c3aed'; c.lineWidth=2; c.stroke();
+        const dx=b.x-a.x, dy=b.y-a.y; const ang=Math.atan2(dy,dx);
+        c.beginPath(); c.arc(a.x,a.y, 30, ang-1.2, ang+1.2); c.strokeStyle='rgba(124,58,237,0.4)'; c.stroke();
+      } else if(el.type==='bench'){
+        c.beginPath(); c.rect(el.rect.x, el.rect.y, el.rect.w, el.rect.h); c.fillStyle='rgba(99,102,241,0.14)'; c.fill(); c.strokeStyle='#6366f1'; c.stroke();
+      } else if(el.type==='hood'){
+        c.beginPath(); c.rect(el.rect.x, el.rect.y, el.rect.w, el.rect.h); c.fillStyle='rgba(6,182,212,0.06)'; c.fill(); c.strokeStyle='#06b6d4'; c.stroke();
+        c.fillStyle='#083344'; c.font='12px sans-serif'; c.fillText('CAPELA', el.rect.x+6, el.rect.y+16);
+      }
+    });
+    c.restore();
+    // draw risks if present
+    if(window.__riskManager){
+      window.__riskManager.getRisks().forEach(r=>{
+        const p = { x: (r.x - view.x) * view.scale, y: (r.y - view.y) * view.scale };
+        c.beginPath(); c.arc(p.x, p.y, 14*view.scale, 0, Math.PI*2); c.fillStyle = (function(cat){switch(cat){case 'biological':return '#16a34a';case 'chemical':return '#ef4444';case 'physical':return '#f59e0b';case 'ergonomic':return '#2563eb';default:return '#94a3b8'}})(r.category); c.fill();
+        c.fillStyle='white'; c.font=(12*view.scale)+'px sans-serif'; c.fillText(r.nb, p.x + (16*view.scale), p.y + (6*view.scale));
+      });
+    }
+    return off.toDataURL('image/png');
+  }
+
+  // expose
+  return {
+    canvas, ctx, setSize, redraw, addWall, addDoor, addBench, addHood, clearAll, getElements, setElements, pickElementAtScreen, panBy, zoomBy, resetView, selectElement, getSelection, toDataURL, worldToScreen, screenToWorld
+  };
+})();
+
+/* ===================== Risk Manager ===================== */
+const RiskManager = (function(){
+  let risks = []; // {id,x,y,category,nb,label,linkedTo}
+  function getRisks(){ return risks; }
+  function addRisk(x,y,category='biological', nb='NB1', label=''){
+    const r={ id: Utils.uid('risk'), x,y, category, nb, label, linkedTo:null };
+    risks.push(r); updateUI(); return r;
+  }
+  function updateRisk(id, props){
+    const r = risks.find(x=>x.id===id); if(!r) return;
+    Object.assign(r, props); updateUI();
+  }
+  function removeRisk(id){
+    risks = risks.filter(r=>r.id!==id); updateUI();
+  }
+  function clear(){ risks=[]; updateUI(); }
+  function setRisks(arr){ risks = arr || []; updateUI(); }
+  function pickRiskAtScreen(x,y){
+    const p = Drawer.screenToWorld({x,y});
+    for(let i=risks.length-1;i>=0;i--){
+      const r = risks[i];
+      const dx = p.x - r.x, dy = p.y - r.y;
+      if(Math.sqrt(dx*dx+dy*dy) < 12) return r;
+    }
+    return null;
+  }
+
+  function updateUI(){
+    // update risk list panel
+    const root = document.getElementById('riskList'); root.innerHTML='';
+    const filterCat = document.getElementById('filterCategory').value;
+    const filterNB = document.getElementById('filterNB').value;
+    risks.forEach(r=>{
+      if(filterCat && r.category!==filterCat) return;
+      if(filterNB && r.nb!==filterNB) return;
+      const el = document.createElement('div'); el.className='risk-item';
+      const dot = document.createElement('div'); dot.className='risk-dot'; dot.style.background = (function(cat){switch(cat){case 'biological':return '#16a34a';case 'chemical':return '#ef4444';case 'physical':return '#f59e0b';case 'ergonomic':return '#2563eb';default:return '#94a3b8'}})(r.category);
+      const txt = document.createElement('div'); txt.style.flex='1';
+      txt.innerHTML = `<strong style="display:block">${r.label||'(sem título)'}</strong><div class="meta">${r.category} · ${r.nb}</div>`;
+      const btns = document.createElement('div'); btns.style.display='flex'; btns.style.gap='6px';
+      const edit = document.createElement('button'); edit.className='btn ghost'; edit.textContent='Editar'; edit.onclick = ()=> openRiskModal(r.id);
+      const del = document.createElement('button'); del.className='btn'; del.textContent='Remover'; del.onclick = ()=> { if(confirm('Remover risco?')){ removeRisk(r.id); Drawer.redraw(getRisks()); } };
+      btns.appendChild(edit); btns.appendChild(del);
+      el.appendChild(dot); el.appendChild(txt); el.appendChild(btns);
+      root.appendChild(el);
+    });
+    Drawer.redraw(risks);
+  }
+
+  function openRiskModal(id){
+    const r = risks.find(x=>x.id===id);
+    const modal = document.getElementById('riskModal');
+    document.getElementById('riskCategory').value = r.category;
+    document.getElementById('riskNB').value = r.nb;
+    document.getElementById('riskLabel').value = r.label || '';
+    modal.style.display='flex';
+    document.getElementById('riskSave').onclick = ()=>{
+      updateRisk(r.id, { category: document.getElementById('riskCategory').value, nb: document.getElementById('riskNB').value, label: document.getElementById('riskLabel').value });
+      modal.style.display='none'; Drawer.redraw(getRisks());
+    };
+    document.getElementById('riskCancel').onclick = ()=>{ modal.style.display='none'; };
+  }
+
+  return { getRisks, addRisk, updateRisk, removeRisk, clear, setRisks, pickRiskAtScreen, updateUI };
+})();
+
+/* Expose for drawing usage */
+window.__riskManager = RiskManager;
+
+/* ===================== Exporter ===================== */
+const Exporter = (function(){
+  function exportPNG(){
+    const dataURL = Drawer.toDataURL(true);
+    // convert dataURL to blob and trigger download
+    fetch(dataURL).then(res=>res.blob()).then(blob=>{
+      const name = (document.getElementById('mapName').value || 'mapa_riscos') + '.png';
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+  }
+  function exportJPG(){
+    // convert png dataURL to JPG via canvas conversion
+    const dataURL = Drawer.toDataURL(true);
+    fetch(dataURL).then(res=>res.blob()).then(blob=>createImageBitmap(blob)).then(imgBitmap=>{
+      const c = document.createElement('canvas'); c.width=imgBitmap.width; c.height=imgBitmap.height; const cx=c.getContext('2d'); cx.drawImage(imgBitmap,0,0);
+      c.toBlob((b)=>{ const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download=(document.getElementById('mapName').value || 'mapa_riscos')+'.jpg'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }, 'image/jpeg', 0.92);
+    });
+  }
+
+  function exportPDF(){
+    // open printable window with image and metadata
+    const dataURL = Drawer.toDataURL(true);
+    const meta = {
+      name: document.getElementById('mapName').value || 'Mapa de Riscos',
+      date: document.getElementById('mapDate').value || (new Date()).toLocaleDateString(),
+      scale: document.getElementById('mapScale').value || '50'
+    };
+    const risks = JSON.stringify(RiskManager.getRisks(), null, 2);
+    const w = window.open('', '_blank');
+    const html = `
+      <html><head><title>${meta.name}</title>
+      <style>body{font-family:Arial,Helvetica,sans-serif;padding:12px;color:#0b1220} img{max-width:100%;height:auto;border:1px solid #ccc} pre{background:#f6f8fa;padding:8px;border-radius:8px;overflow:auto}</style>
+      </head><body>
+      <h2>${meta.name}</h2><div>Data: ${meta.date} · Escala: ${meta.scale} px = 1 m</div><hr/>
+      <img src="${dataURL}" alt="Mapa"/><h3>Riscos identificados</h3><pre>${risks}</pre>
+      <script>window.onload=function(){ setTimeout(()=>{ window.print(); },300); }</script>
+      </body></html>`;
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+
+  return { exportPNG, exportJPG, exportPDF };
+})();
+
+/* ===================== UI ===================== */
+const UI = (function(){
+  // state
+  let currentTool = 'select';
+  let drawing = false;
+  let startPoint = null;
+  let tempElement = null;
+  let isMobile = window.matchMedia('(max-width:900px)').matches;
+  const canvas = Drawer.canvas;
+
+  // touch pinch zoom
+  let lastTouchDistance = null;
+  let lastTouchMidpoint = null;
+  let isPanning = false;
+  let lastPan = null;
+
+  function init(){
+    // initialize date default
+    const d = document.getElementById('mapDate'); d.value = new Date().toISOString().slice(0,10);
+    bindToolbar();
+    bindCanvasEvents();
+    bindButtons();
+    Drawer.redraw(RiskManager.getRisks());
+    RiskManager.updateUI();
+    detectOrientation();
+    window.addEventListener('resize', detectOrientation);
+    setupShortcuts();
+    populateSymbols();
+  }
+
+  function bindToolbar(){
+    const map = { selectTool:'select', wallTool:'wall', doorTool:'door', benchTool:'bench', hoodTool:'hood', riskTool:'risk', panTool:'pan' };
+    Object.keys(map).forEach(id=>{
+      const btn = document.getElementById(id);
+      btn.onclick = ()=> setTool(map[id], btn);
+    });
+    setTool('select', document.getElementById('selectTool'));
+  }
+
+  function setTool(tool, btnEl){
+    currentTool = tool;
+    document.getElementById('currentMode').textContent = (tool==='select' ? 'Selecionar' : tool==='wall' ? 'Desenhar parede' : tool==='door' ? 'Adicionar porta' : tool==='bench' ? 'Bancada' : tool==='hood' ? 'Capela' : tool==='risk' ? 'Marcar risco' : tool==='pan' ? 'Pan' : tool);
+    // active class on toolbar
+    document.querySelectorAll('.toolbar button').forEach(b=>b.classList.remove('active'));
+    if(btnEl) btnEl.classList.add('active');
+  }
+
+  function bindCanvasEvents(){
+    // pointer events unify mouse/touch
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('wheel', onWheel, { passive:false });
+
+    // mobile hamburger
+    document.getElementById('hamburgerBtn').onclick = ()=>{ document.querySelector('.left-palette').style.display = (document.querySelector('.left-palette').style.display==='none') ? 'block' : 'none'; document.getElementById('rightPanel').style.display = (document.getElementById('rightPanel').style.display==='none') ? 'block' : 'none'; };
+
+    // pinch to zoom handlers
+    canvas.addEventListener('touchstart', touchStart, {passive:false});
+    canvas.addEventListener('touchmove', touchMove, {passive:false});
+    canvas.addEventListener('touchend', touchEnd);
+
+    // zoom buttons
+    document.getElementById('zoomIn').onclick = ()=> Drawer.zoomBy(1.15);
+    document.getElementById('zoomOut').onclick = ()=> Drawer.zoomBy(1/1.15);
+    document.getElementById('resetView').onclick = ()=> Drawer.resetView();
+
+    // filters
+    document.getElementById('filterCategory').onchange = ()=> RiskManager.updateUI();
+    document.getElementById('filterNB').onchange = ()=> RiskManager.updateUI();
+  }
+
+  function onPointerDown(e){
+    canvas.setPointerCapture(e.pointerId);
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left; const sy = e.clientY - rect.top;
+    // interpret tool action
+    if(currentTool==='wall' || currentTool==='door'){
+      drawing=true; startPoint = Drawer.screenToWorld({x:sx,y:sy});
+      tempElement = { start: startPoint };
+    } else if(currentTool==='bench' || currentTool==='hood'){
+      drawing=true; startPoint = Drawer.screenToWorld({x:sx,y:sy});
+      tempElement = { start: startPoint };
+    } else if(currentTool==='risk'){
+      // add risk at point
+      const p = Drawer.screenToWorld({x:sx,y:sy});
+      const r = RiskManager.addRisk(p.x,p.y,'biological','NB1','');
+      openRiskEdit(r);
+    } else if(currentTool==='select'){
+      // pick element or risk
+      const el = Drawer.pickElementAtScreen(sx,sy);
+      const risk = RiskManager.pickRiskAtScreen(sx,sy);
+      if(risk){ openRiskEdit(risk); }
+      else if(el){ Drawer.selectElement(el); }
+      else { Drawer.selectElement(null); }
+    } else if(currentTool==='pan'){
+      isPanning = true; lastPan = { x: e.clientX, y: e.clientY };
+    }
+  }
+
+  function onPointerMove(e){
+    if(!drawing && !isPanning) return;
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left; const sy = e.clientY - rect.top;
+    if(drawing && (currentTool==='wall' || currentTool==='door')){
+      const world = Drawer.screenToWorld({x:sx,y:sy});
+      // show temp line by re-drawing with overlay
+      Drawer.redraw(RiskManager.getRisks());
+      const ctx = Drawer.ctx;
+      ctx.save();
+      ctx.translate(-Drawer.ctx.canvas.getBoundingClientRect().left, -Drawer.ctx.canvas.getBoundingClientRect().top); // noop but ensure save
+      // draw temp line in screen space transformed
+      ctx.translate(-Drawer.worldToScreen({x:0,y:0}).x, -Drawer.worldToScreen({x:0,y:0}).y);
+      // Instead draw overlay using world coordinates
+      ctx.restore();
+      // simpler approach: draw temp line directly using worldToScreen
+      const p1 = Drawer.worldToScreen(startPoint);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(sx, sy);
+      ctx.strokeStyle = 'rgba(99,102,241,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+    } else if(drawing && (currentTool==='bench' || currentTool==='hood')){
+      const world = Drawer.screenToWorld({x:sx,y:sy});
+      Drawer.redraw(RiskManager.getRisks());
+      const ctx = Drawer.ctx;
+      ctx.save();
+      // rectangle overlay
+      const x = Math.min(startPoint.x, world.x), y = Math.min(startPoint.y, world.y);
+      const w = Math.abs(world.x - startPoint.x), h = Math.abs(world.y - startPoint.y);
+      const p1 = Drawer.worldToScreen({x,y});
+      const p2 = Drawer.worldToScreen({x:x+w, y:y+h});
+      ctx.beginPath(); ctx.rect(p1.x, p1.y, p2.x-p1.x, p2.y-p1.y);
+      ctx.strokeStyle='rgba(6,182,212,0.8)'; ctx.lineWidth=2; ctx.stroke();
+      ctx.restore();
+    } else if(isPanning){
+      const dx = e.clientX - lastPan.x, dy = e.clientY - lastPan.y;
+      Drawer.panBy(dx,dy);
+      lastPan = { x:e.clientX, y:e.clientY };
+    }
+  }
+
+  function onPointerUp(e){
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left; const sy = e.clientY - rect.top;
+    if(drawing && (currentTool==='wall' || currentTool==='door')){
+      const p1 = startPoint; const p2 = Drawer.screenToWorld({x:sx,y:sy});
+      if(currentTool==='wall') Drawer.addWall(p1,p2);
+      else Drawer.addDoor(p1,p2);
+      drawing=false; tempElement=null; startPoint=null; Drawer.redraw(RiskManager.getRisks());
+    } else if(drawing && (currentTool==='bench' || currentTool==='hood')){
+      const world = Drawer.screenToWorld({x:sx,y:sy});
+      const x = Math.min(startPoint.x, world.x), y = Math.min(startPoint.y, world.y);
+      const w = Math.abs(world.x - startPoint.x), h = Math.abs(world.y - startPoint.y);
+      if(w>2 && h>2){
+        const rect = { x, y, w, h };
+        if(currentTool==='bench') Drawer.addBench(rect);
+        else Drawer.addHood(rect);
+      }
+      drawing=false; tempElement=null; startPoint=null; Drawer.redraw(RiskManager.getRisks());
+    } else if(isPanning){
+      isPanning=false; lastPan=null;
+    }
+  }
+
+  function onWheel(e){
+    // ctrl+wheel for zoom; otherwise pan vertical -> zoom, shift for horizontal
+    e.preventDefault();
+    const delta = e.deltaY;
+    const factor = delta > 0 ? 1/1.12 : 1.12;
+    const rect = canvas.getBoundingClientRect();
+    Drawer.zoomBy(factor, e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  // touch pinch handlers
+  function touchStart(e){
+    if(e.touches.length===2){
+      e.preventDefault();
+      lastTouchDistance = distanceBetween(e.touches[0], e.touches[1]);
+      lastTouchMidpoint = midpoint(e.touches[0], e.touches[1]);
+    }
+  }
+  function touchMove(e){
+    if(e.touches.length===2 && lastTouchDistance){
+      e.preventDefault();
+      const d = distanceBetween(e.touches[0], e.touches[1]);
+      const m = midpoint(e.touches[0], e.touches[1]);
+      const factor = d / lastTouchDistance;
+      Drawer.zoomBy(factor, m.x - canvas.getBoundingClientRect().left, m.y - canvas.getBoundingClientRect().top);
+      lastTouchDistance = d; lastTouchMidpoint = m;
+    } else if(e.touches.length===1 && currentTool==='pan'){
+      // allow single finger pan in pan mode
+      e.preventDefault();
+      const t = e.touches[0];
+      if(lastPan){ const dx = t.clientX - lastPan.x, dy = t.clientY - lastPan.y; Drawer.panBy(dx,dy); lastPan={x:t.clientX,y:t.clientY}; }
+      else lastPan={x:t.clientX,y:t.clientY};
+    }
+  }
+  function touchEnd(e){
+    if(e.touches.length < 2){ lastTouchDistance = null; lastTouchMidpoint = null; }
+    if(e.touches.length===0) lastPan = null;
+  }
+  function distanceBetween(a,b){ const dx=a.clientX-b.clientX, dy=a.clientY-b.clientY; return Math.sqrt(dx*dx+dy*dy); }
+  function midpoint(a,b){ return { x:(a.clientX+b.clientX)/2, y:(a.clientY+b.clientY)/2 }; }
+
+  // open risk edit modal for newly created risk or selected risk
+  function openRiskEdit(r){
+    // if r is object, open modal and on save update and redraw
+    const modal = document.getElementById('riskModal'); modal.style.display='flex';
+    document.getElementById('riskCategory').value = r.category || 'biological';
+    document.getElementById('riskNB').value = r.nb || 'NB1';
+    document.getElementById('riskLabel').value = r.label || '';
+    document.getElementById('riskSave').onclick = ()=>{
+      RiskManager.updateRisk(r.id, { category: document.getElementById('riskCategory').value, nb: document.getElementById('riskNB').value, label: document.getElementById('riskLabel').value });
+      modal.style.display='none'; Drawer.redraw(RiskManager.getRisks());
+    };
+    document.getElementById('riskCancel').onclick = ()=>{ modal.style.display='none'; Drawer.redraw(RiskManager.getRisks()); };
+  }
+
+  // buttons
+  function bindButtons(){
+    document.getElementById('saveJsonBtn').onclick = ()=> {
+      const map = gatherMapState();
+      Storage.exportJSON(map);
+      Storage.saveToLocal(map);
+      alert('Mapa salvo em JSON e em localStorage.');
+    };
+    document.getElementById('loadJsonBtn').onclick = ()=> document.getElementById('loadJsonFile').click();
+    document.getElementById('loadJsonFile').onchange = (e)=> {
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader(); reader.onload = ()=> {
+        try{
+          const obj = JSON.parse(reader.result);
+          restoreMapState(obj);
+          alert('Mapa carregado.');
+        }catch(err){ alert('Arquivo JSON inválido.'); }
+      }; reader.readAsText(f);
+    };
+    document.getElementById('exportPngBtn').onclick = ()=> Exporter.exportPNG();
+    document.getElementById('exportPdfBtn').onclick = ()=> Exporter.exportPDF();
+    document.getElementById('newMapBtn').onclick = ()=> { if(confirm('Criar novo mapa? Isso limpará o atual.')){ Drawer.clearAll(); RiskManager.clear(); Drawer.redraw([]); } };
+    document.getElementById('clearBtn').onclick = ()=> { if(confirm('Limpar elementos e riscos?')){ Drawer.clearAll(); RiskManager.clear(); Drawer.redraw([]); } };
+
+    // load from localStorage on init if available
+    const local = Storage.loadFromLocal();
+    if(local){
+      if(confirm('Encontrado mapa salvo localmente. Carregar?')) restoreMapState(local);
+    }
+  }
+
+  function gatherMapState(){
+    return {
+      name: document.getElementById('mapName').value,
+      date: document.getElementById('mapDate').value,
+      scale: document.getElementById('mapScale').value,
+      createdAt: Utils.nowISO(),
+      elements: Drawer.getElements(),
+      risks: RiskManager.getRisks()
+    };
+  }
+
+  function restoreMapState(state){
+    if(!state) return;
+    document.getElementById('mapName').value = state.name || '';
+    document.getElementById('mapDate').value = state.date || new Date().toISOString().slice(0,10);
+    document.getElementById('mapScale').value = state.scale || 50;
+    Drawer.setElements(state.elements || []);
+    RiskManager.setRisks(state.risks || []);
+    Drawer.redraw(RiskManager.getRisks());
+  }
+
+  function setupShortcuts(){
+    window.addEventListener('keydown', (e)=>{
+      if(e.ctrlKey && e.key.toLowerCase()==='s'){ e.preventDefault(); document.getElementById('saveJsonBtn').click(); }
+      if(e.ctrlKey && e.key.toLowerCase()==='e'){ e.preventDefault(); Exporter.exportPNG(); }
+      if(e.key.toLowerCase()==='v') setTool('select', document.getElementById('selectTool'));
+      if(e.key.toLowerCase()==='w') setTool('wall', document.getElementById('wallTool'));
+      if(e.key.toLowerCase()==='d') setTool('door', document.getElementById('doorTool'));
+      if(e.key.toLowerCase()==='b') setTool('bench', document.getElementById('benchTool'));
+      if(e.key.toLowerCase()==='h') setTool('hood', document.getElementById('hoodTool'));
+      if(e.key.toLowerCase()==='r') setTool('risk', document.getElementById('riskTool'));
+      if(e.code==='Space'){ e.preventDefault(); setTool('pan', document.getElementById('panTool')); }
+    });
+    window.addEventListener('keyup', (e)=>{ if(e.code==='Space'){ setTool('select', document.getElementById('selectTool')); } });
+  }
+
+  function detectOrientation(){
+    isMobile = window.matchMedia('(max-width:900px)').matches;
+    const warn = document.getElementById('orientWarn');
+    if(isMobile){
+      // show warning if portrait
+      const isPortrait = window.innerHeight > window.innerWidth;
+      warn.style.display = isPortrait ? 'block' : 'none';
+      document.querySelector('.left-palette').style.display='none';
+      document.getElementById('rightPanel').style.display='none';
+      // adjust canvas size for mobile
+      const cw = Math.max(window.innerWidth - 24, 800), ch = Math.max(window.innerHeight - 160, 500);
+      Drawer.setSize(cw, ch);
+    } else {
+      warn.style.display = 'none';
+      document.querySelector('.left-palette').style.display='block';
+      document.getElementById('rightPanel').style.display='block';
+      const cw = Math.max(window.innerWidth - 400, 1200), ch = Math.max(window.innerHeight - 60, 700);
+      Drawer.setSize(cw, ch);
+    }
+  }
+
+  function populateSymbols(){
+    const grid = document.getElementById('symbolGrid');
+    const symbols = [
+      {id:'wall', title:'Parede', svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`},
+      {id:'door', title:'Porta', svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" stroke-width="1.2"/><path d="M9 3v18" stroke-width="1.2"/></svg>`},
+      {id:'bench', title:'Bancada', svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="7" width="18" height="6" rx="1" stroke-width="1.2"/></svg>`},
+      {id:'hood', title:'Capela', svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h16v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6z" stroke-width="1.2"/><path d="M9 6h6v4H9z" stroke-width="1.2"/></svg>`},
+    ];
+    symbols.forEach(s=>{
+      const d = document.createElement('div'); d.className='symbol'; d.title=s.title; d.innerHTML = `${s.svg}<div class="small" style="margin-top:6px">${s.title}</div>`;
+      d.onclick = ()=> {
+        document.getElementById(s.id+'Tool').click();
+      };
+      grid.appendChild(d);
+    });
+  }
+
+  return { init, setTool, openRiskEdit, gatherMapState, restoreMapState };
+})();
+
+/* ===================== Initialization ===================== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  UI.init();
+  // initial full redraw
+  Drawer.redraw(RiskManager.getRisks());
+});
 </script>
 </body>
 </html>
