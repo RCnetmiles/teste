@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Riscos para Laboratórios</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Reset e configurações gerais */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo i {
+            font-size: 1.8rem;
+        }
+        
+        .logo h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Botões gerais */
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-success {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        .btn-warning {
+            background-color: #f39c12;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background-color: #d35400;
+        }
+        
+        /* Container principal */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Barra de ferramentas lateral (desktop) */
+        .toolbar {
+            width: 280px;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+        
+        /* Área de trabalho */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: #ecf0f1;
+            position: relative;
+        }
+        
+        /* Canvas de desenho */
+        .canvas-container {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            padding: 20px;
+        }
+        
+        #drawing-canvas {
+            background-color: white;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            cursor: crosshair;
+            display: block;
+        }
+        
+        /* Grupos de ferramentas */
+        .tool-group {
+            margin-bottom: 20px;
+        }
+        
+        .tool-group h3 {
+            font-size: 1rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        /* Botões de ferramentas */
+        .tool-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .tool-btn {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .tool-btn:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+        }
+        
+        .tool-btn.active {
+            background-color: #d6eaf8;
+            border-color: #3498db;
+            color: #3498db;
+            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2);
+        }
+        
+        .tool-btn i {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+        
+        /* Paleta de cores/riscos */
+        .palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        
+        .color-item {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .color-item.active {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+        
+        /* Menu hamburguer (mobile) */
+        .hamburger-menu {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Aviso de orientação para mobile */
+        .orientation-warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            z-index: 2000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .orientation-warning i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #f39c12;
+            animation: rotate 2s infinite;
+        }
+        
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(90deg); }
+        }
+        
+        /* Controles de zoom (mobile) */
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 50;
+            display: none;
+        }
+        
+        .zoom-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: white;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Painel de propriedades */
+        .properties-panel {
+            background-color: white;
+            border-left: 1px solid #ddd;
+            width: 250px;
+            padding: 15px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .properties-panel.active {
+            display: block;
+        }
+        
+        /* Elementos no canvas */
+        .lab-element {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+        }
+        
+        .risk-marker {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+        }
+        
+        .risk-marker:hover {
+            transform: scale(1.2);
+        }
+        
+        /* Modal para detalhes do risco */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            display: none;
+        }
+        
+        .modal {
+            background-color: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-header {
+            padding: 15px 20px;
+            background-color: #2c3e50;
+            color: white;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        /* Responsividade */
+        @media (max-width: 1024px) {
+            .toolbar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                transform: translateX(-100%);
+                z-index: 100;
+            }
+            
+            .toolbar.active {
+                transform: translateX(0);
+            }
+            
+            .hamburger-menu {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .zoom-controls {
+                display: flex;
+            }
+            
+            .properties-panel {
+                position: absolute;
+                top: 0;
+                right: 0;
+                height: 100%;
+                transform: translateX(100%);
+                z-index: 100;
+            }
+            
+            .properties-panel.active {
+                transform: translateX(0);
+            }
+        }
+        
+        @media (max-width: 768px) and (orientation: portrait) {
+            .orientation-warning {
+                display: flex;
+            }
+        }
+        
+        /* Estilos para diferentes categorias de riscos */
+        .risk-biological {
+            background-color: #e74c3c;
+        }
+        
+        .risk-chemical {
+            background-color: #9b59b6;
+        }
+        
+        .risk-physical {
+            background-color: #3498db;
+        }
+        
+        .risk-ergonomic {
+            background-color: #f39c12;
+        }
+        
+        /* Níveis de biossegurança */
+        .nb1 { border: 2px solid #27ae60; }
+        .nb2 { border: 2px solid #f1c40f; }
+        .nb3 { border: 2px solid #e67e22; }
+        .nb4 { border: 2px solid #e74c3c; }
+        
+        /* Utilitários */
+        .hidden {
+            display: none !important;
+        }
+        
+        .flex {
+            display: flex;
+        }
+        
+        .mt-10 {
+            margin-top: 10px;
+        }
+        
+        .mt-20 {
+            margin-top: 20px;
+        }
+        
+        .mb-10 {
+            margin-bottom: 10px;
+        }
+        
+        .w-100 {
+            width: 100%;
+        }
+        
+        /* Formulários */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        /* Status bar */
+        .status-bar {
+            background-color: white;
+            border-top: 1px solid #ddd;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">
+            <i class="fas fa-radiation-alt"></i>
+            <h1>Mapa de Riscos para Laboratórios</h1>
+        </div>
+        <div class="controls">
+            <button class="btn-primary" id="save-btn">
+                <i class="fas fa-save"></i> Salvar
+            </button>
+            <button class="btn-success" id="export-image-btn">
+                <i class="fas fa-image"></i> Exportar Imagem
+            </button>
+            <button class="btn-warning" id="export-pdf-btn">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </button>
+        </div>
+    </div>
+    
+    <!-- Container principal -->
+    <div class="main-container">
+        <!-- Barra de ferramentas -->
+        <div class="toolbar" id="toolbar">
+            <!-- Ferramentas de desenho -->
+            <div class="tool-group">
+                <h3><i class="fas fa-pencil-alt"></i> Ferramentas de Desenho</h3>
+                <div class="tool-buttons">
+                    <div class="tool-btn active" data-tool="select">
+                        <i class="fas fa-mouse-pointer"></i>
+                        <span>Selecionar</span>
+                    </div>
+                    <div class="tool-btn" data-tool="wall">
+                        <i class="fas fa-grip-lines-vertical"></i>
+                        <span>Parede</span>
+                    </div>
+                    <div class="tool-btn" data-tool="door">
+                        <i class="fas fa-door-open"></i>
+                        <span>Porta</span>
+                    </div>
+                    <div class="tool-btn" data-tool="counter">
+                        <i class="fas fa-border-style"></i>
+                        <span>Bancada</span>
+                    </div>
+                    <div class="tool-btn" data-tool="fume-hood">
+                        <i class="fas fa-wind"></i>
+                        <span>Capela</span>
+                    </div>
+                    <div class="tool-btn" data-tool="free-draw">
+                        <i class="fas fa-pencil-alt"></i>
+                        <span>Desenho Livre</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Marcadores de risco -->
+            <div class="tool-group">
+                <h3><i class="fas fa-exclamation-triangle"></i> Marcadores de Risco</h3>
+                <div class="tool-buttons">
+                    <div class="tool-btn" data-tool="risk-biological">
+                        <i class="fas fa-virus"></i>
+                        <span>Biológico</span>
+                    </div>
+                    <div class="tool-btn" data-tool="risk-chemical">
+                        <i class="fas fa-flask"></i>
+                        <span>Químico</span>
+                    </div>
+                    <div class="tool-btn" data-tool="risk-physical">
+                        <i class="fas fa-radiation-alt"></i>
+                        <span>Físico</span>
+                    </div>
+                    <div class="tool-btn" data-tool="risk-ergonomic">
+                        <i class="fas fa-user-injured"></i>
+                        <span>Ergonômico</span>
+                    </div>
+                </div>
+                
+                <!-- Níveis de biossegurança -->
+                <div class="form-group mt-10">
+                    <label for="biosafety-level">Nível de Biossegurança:</label>
+                    <select id="biosafety-level">
+                        <option value="nb1">NB1 - Risco Mínimo</option>
+                        <option value="nb2">NB2 - Risco Moderado</option>
+                        <option value="nb3" selected>NB3 - Risco Elevado</option>
+                        <option value="nb4">NB4 - Risco Máximo</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Controles do mapa -->
+            <div class="tool-group">
+                <h3><i class="fas fa-cog"></i> Controles do Mapa</h3>
+                <button class="btn-primary w-100 mb-10" id="clear-btn">
+                    <i class="fas fa-trash-alt"></i> Limpar Mapa
+                </button>
+                <button class="btn-warning w-100" id="load-btn">
+                    <i class="fas fa-folder-open"></i> Carregar Mapa
+                </button>
+            </div>
+            
+            <!-- Legenda -->
+            <div class="tool-group">
+                <h3><i class="fas fa-info-circle"></i> Legenda</h3>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="color-item risk-biological" style="width: 20px; height: 20px;"></div>
+                        <span>Risco Biológico</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-item risk-chemical" style="width: 20px; height: 20px;"></div>
+                        <span>Risco Químico</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-item risk-physical" style="width: 20px; height: 20px;"></div>
+                        <span>Risco Físico</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-item risk-ergonomic" style="width: 20px; height: 20px;"></div>
+                        <span>Risco Ergonômico</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Área de trabalho -->
+        <div class="workspace">
+            <!-- Botão menu hambúrguer (mobile) -->
+            <button class="hamburger-menu" id="hamburger-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <!-- Controles de zoom (mobile) -->
+            <div class="zoom-controls" id="zoom-controls">
+                <button class="zoom-btn" id="zoom-in-btn">
+                    <i class="fas fa-search-plus"></i>
+                </button>
+                <button class="zoom-btn" id="zoom-out-btn">
+                    <i class="fas fa-search-minus"></i>
+                </button>
+                <button class="zoom-btn" id="zoom-reset-btn">
+                    <i class="fas fa-expand-arrows-alt"></i>
+                </button>
+            </div>
+            
+            <!-- Canvas de desenho -->
+            <div class="canvas-container" id="canvas-container">
+                <canvas id="drawing-canvas" width="1200" height="800"></canvas>
+            </div>
+            
+            <!-- Barra de status -->
+            <div class="status-bar">
+                <div id="status">Ferramenta: Selecionar | Nível de Biossegurança: NB3</div>
+                <div id="coordinates">X: 0, Y: 0</div>
+            </div>
+        </div>
+        
+        <!-- Painel de propriedades -->
+        <div class="properties-panel" id="properties-panel">
+            <h3><i class="fas fa-info-circle"></i> Propriedades</h3>
+            <div id="properties-content">
+                <p>Selecione um elemento para ver suas propriedades.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para detalhes do risco -->
+    <div class="modal-overlay" id="risk-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Detalhes do Risco</h3>
+                <button id="close-modal-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="risk-form">
+                    <div class="form-group">
+                        <label for="risk-type">Tipo de Risco:</label>
+                        <select id="risk-type">
+                            <option value="biological">Biológico</option>
+                            <option value="chemical">Químico</option>
+                            <option value="physical">Físico</option>
+                            <option value="ergonomic">Ergonômico</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="risk-category">Categoria Específica:</label>
+                        <select id="risk-category">
+                            <!-- Opções serão preenchidas dinamicamente -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="biosafety-level-modal">Nível de Biossegurança:</label>
+                        <select id="biosafety-level-modal">
+                            <option value="nb1">NB1 - Risco Mínimo</option>
+                            <option value="nb2">NB2 - Risco Moderado</option>
+                            <option value="nb3" selected>NB3 - Risco Elevado</option>
+                            <option value="nb4">NB4 - Risco Máximo</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="risk-description">Descrição do Risco:</label>
+                        <textarea id="risk-description" placeholder="Descreva o risco identificado..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="risk-prevention">Medidas de Prevenção:</label>
+                        <textarea id="risk-prevention" placeholder="Descreva as medidas de prevenção..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="button" class="btn-danger w-100" id="delete-risk-btn">
+                            <i class="fas fa-trash-alt"></i> Excluir Risco
+                        </button>
+                    </div>
+                    
+                    <div class="flex" style="gap: 10px;">
+                        <button type="button" class="btn-primary" id="save-risk-btn" style="flex: 1;">
+                            <i class="fas fa-save"></i> Salvar
+                        </button>
+                        <button type="button" class="btn-warning" id="cancel-risk-btn" style="flex: 1;">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Aviso de orientação para mobile -->
+    <div class="orientation-warning" id="orientation-warning">
+        <i class="fas fa-mobile-alt"></i>
+        <h2>Gire seu dispositivo</h2>
+        <p>Para uma melhor experiência, use o dispositivo no modo paisagem.</p>
+    </div>
+    
+    <!-- Input oculto para carregar arquivos -->
+    <input type="file" id="file-input" accept=".json" style="display: none;">
+    
+    <script>
+        // Módulo principal da aplicação
+        const App = (function() {
+            // Estado da aplicação
+            let state = {
+                currentTool: 'select',
+                currentColor: '#e74c3c',
+                currentBiosafetyLevel: 'nb3',
+                drawing: false,
+                lastX: 0,
+                lastY: 0,
+                scale: 1,
+                offsetX: 0,
+                offsetY: 0,
+                isDragging: false,
+                dragStartX: 0,
+                dragStartY: 0,
+                selectedElement: null,
+                elements: [],
+                risks: [],
+                nextId: 1
+            };
+            
+            // Referências aos elementos DOM
+            const elements = {
+                canvas: document.getElementById('drawing-canvas'),
+                ctx: null,
+                toolbar: document.getElementById('toolbar'),
+                hamburgerBtn: document.getElementById('hamburger-btn'),
+                zoomControls: document.getElementById('zoom-controls'),
+                propertiesPanel: document.getElementById('properties-panel'),
+                status: document.getElementById('status'),
+                coordinates: document.getElementById('coordinates'),
+                canvasContainer: document.getElementById('canvas-container'),
+                orientationWarning: document.getElementById('orientation-warning'),
+                toolButtons: document.querySelectorAll('.tool-btn'),
+                biosafetyLevelSelect: document.getElementById('biosafety-level'),
+                riskModal: document.getElementById('risk-modal'),
+                closeModalBtn: document.getElementById('close-modal-btn'),
+                riskForm: document.getElementById('risk-form'),
+                riskTypeSelect: document.getElementById('risk-type'),
+                riskCategorySelect: document.getElementById('risk-category'),
+                biosafetyLevelModal: document.getElementById('biosafety-level-modal'),
+                riskDescription: document.getElementById('risk-description'),
+                riskPrevention: document.getElementById('risk-prevention'),
+                deleteRiskBtn: document.getElementById('delete-risk-btn'),
+                saveRiskBtn: document.getElementById('save-risk-btn'),
+                cancelRiskBtn: document.getElementById('cancel-risk-btn'),
+                currentRiskElement: null,
+                saveBtn: document.getElementById('save-btn'),
+                exportImageBtn: document.getElementById('export-image-btn'),
+                exportPdfBtn: document.getElementById('export-pdf-btn'),
+                clearBtn: document.getElementById('clear-btn'),
+                loadBtn: document.getElementById('load-btn'),
+                fileInput: document.getElementById('file-input'),
+                zoomInBtn: document.getElementById('zoom-in-btn'),
+                zoomOutBtn: document.getElementById('zoom-out-btn'),
+                zoomResetBtn: document.getElementById('zoom-reset-btn')
+            };
+            
+            // Categorias de riscos
+            const riskCategories = {
+                biological: ['Bactérias', 'Vírus', 'Fungos', 'Parasitas', 'Amostras Biológicas'],
+                chemical: ['Gases Tóxicos', 'Vapores', 'Líquidos Inflamáveis', 'Corrosivos', 'Poeiras'],
+                physical: ['Ruído', 'Radiação Ionizante', 'Temperatura Extremas', 'Umidade', 'Vibração'],
+                ergonomic: ['Postura Inadequada', 'Movimentos Repetitivos', 'Esforço Físico', 'Iluminação Inadequada', 'Levantamento de Peso']
+            };
+            
+            // Inicialização da aplicação
+            function init() {
+                // Obter contexto do canvas
+                elements.ctx = elements.canvas.getContext('2d');
+                
+                // Configurar eventos
+                setupEventListeners();
+                
+                // Inicializar categorias de risco no modal
+                updateRiskCategories();
+                
+                // Verificar orientação do dispositivo
+                checkOrientation();
+                
+                // Desenhar elementos iniciais
+                draw();
+                
+                // Atualizar status
+                updateStatus();
+            }
+            
+            // Configurar todos os event listeners
+            function setupEventListeners() {
+                // Eventos do canvas
+                elements.canvas.addEventListener('mousedown', startDrawing);
+                elements.canvas.addEventListener('mousemove', drawElement);
+                elements.canvas.addEventListener('mouseup', stopDrawing);
+                elements.canvas.addEventListener('mouseout', stopDrawing);
+                
+                // Eventos de toque para dispositivos móveis
+                elements.canvas.addEventListener('touchstart', handleTouchStart);
+                elements.canvas.addEventListener('touchmove', handleTouchMove);
+                elements.canvas.addEventListener('touchend', handleTouchEnd);
+                
+                // Eventos de ferramentas
+                elements.toolButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const tool = btn.getAttribute('data-tool');
+                        setTool(tool);
+                    });
+                });
+                
+                // Eventos de menu hambúrguer (mobile)
+                elements.hamburgerBtn.addEventListener('click', toggleToolbar);
+                
+                // Eventos de zoom
+                elements.zoomInBtn.addEventListener('click', zoomIn);
+                elements.zoomOutBtn.addEventListener('click', zoomOut);
+                elements.zoomResetBtn.addEventListener('click', resetZoom);
+                
+                // Eventos de gestos de pinça (zoom)
+                elements.canvasContainer.addEventListener('wheel', handleWheel, { passive: false });
+                
+                // Eventos de níveis de biossegurança
+                elements.biosafetyLevelSelect.addEventListener('change', (e) => {
+                    state.currentBiosafetyLevel = e.target.value;
+                    updateStatus();
+                });
+                
+                // Eventos do modal de risco
+                elements.closeModalBtn.addEventListener('click', closeRiskModal);
+                elements.cancelRiskBtn.addEventListener('click', closeRiskModal);
+                elements.saveRiskBtn.addEventListener('click', saveRisk);
+                elements.deleteRiskBtn.addEventListener('click', deleteRisk);
+                
+                // Eventos de tipo de risco (para atualizar categorias)
+                elements.riskTypeSelect.addEventListener('change', updateRiskCategories);
+                
+                // Eventos de salvar/exportar
+                elements.saveBtn.addEventListener('click', saveMap);
+                elements.exportImageBtn.addEventListener('click', exportImage);
+                elements.exportPdfBtn.addEventListener('click', exportPdf);
+                elements.clearBtn.addEventListener('click', clearMap);
+                elements.loadBtn.addEventListener('click', () => elements.fileInput.click());
+                elements.fileInput.addEventListener('change', loadMap);
+                
+                // Evento de redimensionamento da janela
+                window.addEventListener('resize', handleResize);
+                window.addEventListener('orientationchange', checkOrientation);
+                
+                // Eventos de arrastar para mover o canvas
+                elements.canvasContainer.addEventListener('mousedown', startDragging);
+                window.addEventListener('mousemove', dragCanvas);
+                window.addEventListener('mouseup', stopDragging);
+                
+                // Eventos de teclado (atalhos)
+                document.addEventListener('keydown', handleKeyDown);
+            }
+            
+            // Funções de ferramentas
+            function setTool(tool) {
+                state.currentTool = tool;
+                
+                // Atualizar botões ativos
+                elements.toolButtons.forEach(btn => {
+                    if (btn.getAttribute('data-tool') === tool) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+                
+                // Atualizar cursor
+                if (tool === 'select') {
+                    elements.canvas.style.cursor = 'default';
+                } else if (tool.startsWith('risk-')) {
+                    elements.canvas.style.cursor = 'crosshair';
+                } else {
+                    elements.canvas.style.cursor = 'crosshair';
+                }
+                
+                updateStatus();
+            }
+            
+            // Funções de desenho
+            function startDrawing(e) {
+                e.preventDefault();
+                const rect = elements.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left - state.offsetX) / state.scale;
+                const y = (e.clientY - rect.top - state.offsetY) / state.scale;
+                
+                if (state.currentTool === 'select') {
+                    // Verificar se clicou em um elemento existente
+                    const clickedElement = getElementAtPosition(x, y);
+                    
+                    if (clickedElement) {
+                        state.selectedElement = clickedElement;
+                        showPropertiesPanel(clickedElement);
+                    } else {
+                        state.selectedElement = null;
+                        elements.propertiesPanel.classList.remove('active');
+                    }
+                    
+                    draw();
+                    return;
+                }
+                
+                if (state.currentTool.startsWith('risk-')) {
+                    // Adicionar um novo marcador de risco
+                    addRiskMarker(x, y);
+                    draw();
+                    return;
+                }
+                
+                state.drawing = true;
+                state.lastX = x;
+                state.lastY = y;
+                
+                // Se for uma ferramenta de elemento de laboratório, criar o elemento
+                if (['wall', 'door', 'counter', 'fume-hood'].includes(state.currentTool)) {
+                    const element = createLabElement(state.currentTool, x, y);
+                    state.elements.push(element);
+                    state.selectedElement = element;
+                    showPropertiesPanel(element);
+                }
+            }
+            
+            function drawElement(e) {
+                if (!state.drawing) {
+                    // Atualizar coordenadas no status
+                    const rect = elements.canvas.getBoundingClientRect();
+                    const x = (e.clientX - rect.left - state.offsetX) / state.scale;
+                    const y = (e.clientY - rect.top - state.offsetY) / state.scale;
+                    elements.coordinates.textContent = `X: ${Math.round(x)}, Y: ${Math.round(y)}`;
+                    return;
+                }
+                
+                e.preventDefault();
+                const rect = elements.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left - state.offsetX) / state.scale;
+                const y = (e.clientY - rect.top - state.offsetY) / state.scale;
+                
+                if (state.currentTool === 'free-draw') {
+                    // Desenho livre
+                    elements.ctx.beginPath();
+                    elements.ctx.moveTo(state.lastX * state.scale + state.offsetX, state.lastY * state.scale + state.offsetY);
+                    elements.ctx.lineTo(x * state.scale + state.offsetX, y * state.scale + state.offsetY);
+                    elements.ctx.strokeStyle = '#333';
+                    elements.ctx.lineWidth = 2;
+                    elements.ctx.lineCap = 'round';
+                    elements.ctx.stroke();
+                } else if (state.selectedElement && ['wall', 'door', 'counter', 'fume-hood'].includes(state.selectedElement.type)) {
+                    // Atualizar tamanho do elemento selecionado
+                    state.selectedElement.width = Math.max(10, x - state.selectedElement.x);
+                    state.selectedElement.height = Math.max(10, y - state.selectedElement.y);
+                }
+                
+                state.lastX = x;
+                state.lastY = y;
+                draw();
+            }
+            
+            function stopDrawing() {
+                state.drawing = false;
+            }
+            
+            // Funções para elementos do laboratório
+            function createLabElement(type, x, y) {
+                const id = state.nextId++;
+                let color = '#333';
+                let label = '';
+                
+                switch(type) {
+                    case 'wall': color = '#7f8c8d'; label = 'Parede'; break;
+                    case 'door': color = '#d35400'; label = 'Porta'; break;
+                    case 'counter': color = '#95a5a6'; label = 'Bancada'; break;
+                    case 'fume-hood': color = '#3498db'; label = 'Capela'; break;
+                }
+                
+                return {
+                    id,
+                    type,
+                    x,
+                    y,
+                    width: 50,
+                    height: 50,
+                    color,
+                    label,
+                    rotation: 0
+                };
+            }
+            
+            // Funções para marcadores de risco
+            function addRiskMarker(x, y) {
+                const riskType = state.currentTool.replace('risk-', '');
+                const id = state.nextId++;
+                
+                const risk = {
+                    id,
+                    type: riskType,
+                    x,
+                    y,
+                    biosafetyLevel: state.currentBiosafetyLevel,
+                    category: riskCategories[riskType][0],
+                    description: '',
+                    prevention: ''
+                };
+                
+                state.risks.push(risk);
+                state.selectedElement = risk;
+                showRiskModal(risk);
+            }
+            
+            function showRiskModal(risk) {
+                elements.currentRiskElement = risk;
+                elements.riskTypeSelect.value = risk.type;
+                updateRiskCategories();
+                elements.riskCategorySelect.value = risk.category;
+                elements.biosafetyLevelModal.value = risk.biosafetyLevel;
+                elements.riskDescription.value = risk.description;
+                elements.riskPrevention.value = risk.prevention;
+                elements.riskModal.style.display = 'flex';
+            }
+            
+            function closeRiskModal() {
+                elements.riskModal.style.display = 'none';
+                elements.currentRiskElement = null;
+            }
+            
+            function saveRisk() {
+                if (!elements.currentRiskElement) return;
+                
+                elements.currentRiskElement.type = elements.riskTypeSelect.value;
+                elements.currentRiskElement.category = elements.riskCategorySelect.value;
+                elements.currentRiskElement.biosafetyLevel = elements.biosafetyLevelModal.value;
+                elements.currentRiskElement.description = elements.riskDescription.value;
+                elements.currentRiskElement.prevention = elements.riskPrevention.value;
+                
+                draw();
+                closeRiskModal();
+            }
+            
+            function deleteRisk() {
+                if (!elements.currentRiskElement) return;
+                
+                state.risks = state.risks.filter(r => r.id !== elements.currentRiskElement.id);
+                draw();
+                closeRiskModal();
+            }
+            
+            function updateRiskCategories() {
+                const type = elements.riskTypeSelect.value;
+                const categories = riskCategories[type] || [];
+                
+                // Limpar opções atuais
+                elements.riskCategorySelect.innerHTML = '';
+                
+                // Adicionar novas opções
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    elements.riskCategorySelect.appendChild(option);
+                });
+            }
+            
+            // Funções de desenho no canvas
+            function draw() {
+                // Limpar canvas
+                elements.ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+                
+                // Aplicar transformações (zoom e pan)
+                elements.ctx.save();
+                elements.ctx.translate(state.offsetX, state.offsetY);
+                elements.ctx.scale(state.scale, state.scale);
+                
+                // Desenhar grade de fundo
+                drawGrid();
+                
+                // Desenhar elementos do laboratório
+                state.elements.forEach(element => {
+                    drawLabElement(element);
+                });
+                
+                // Desenhar marcadores de risco
+                state.risks.forEach(risk => {
+                    drawRiskMarker(risk);
+                });
+                
+                // Desenhar elemento selecionado
+                if (state.selectedElement && !state.drawing) {
+                    drawSelection(state.selectedElement);
+                }
+                
+                elements.ctx.restore();
+            }
+            
+            function drawGrid() {
+                const gridSize = 20;
+                const width = elements.canvas.width / state.scale;
+                const height = elements.canvas.height / state.scale;
+                
+                elements.ctx.strokeStyle = '#e0e0e0';
+                elements.ctx.lineWidth = 0.5;
+                
+                // Linhas verticais
+                for (let x = 0; x <= width; x += gridSize) {
+                    elements.ctx.beginPath();
+                    elements.ctx.moveTo(x, 0);
+                    elements.ctx.lineTo(x, height);
+                    elements.ctx.stroke();
+                }
+                
+                // Linhas horizontais
+                for (let y = 0; y <= height; y += gridSize) {
+                    elements.ctx.beginPath();
+                    elements.ctx.moveTo(0, y);
+                    elements.ctx.lineTo(width, y);
+                    elements.ctx.stroke();
+                }
+            }
+            
+            function drawLabElement(element) {
+                elements.ctx.fillStyle = element.color;
+                elements.ctx.strokeStyle = '#333';
+                elements.ctx.lineWidth = 1;
+                
+                // Desenhar retângulo base
+                elements.ctx.fillRect(element.x, element.y, element.width, element.height);
+                elements.ctx.strokeRect(element.x, element.y, element.width, element.height);
+                
+                // Adicionar ícone baseado no tipo
+                elements.ctx.fillStyle = '#fff';
+                elements.ctx.font = '14px Arial';
+                elements.ctx.textAlign = 'center';
+                elements.ctx.textBaseline = 'middle';
+                
+                let icon = '';
+                switch(element.type) {
+                    case 'wall': icon = '🧱'; break;
+                    case 'door': icon = '🚪'; break;
+                    case 'counter': icon = '🔬'; break;
+                    case 'fume-hood': icon = '💨'; break;
+                }
+                
+                elements.ctx.fillText(icon, element.x + element.width/2, element.y + element.height/2);
+                
+                // Adicionar rótulo
+                elements.ctx.fillStyle = '#333';
+                elements.ctx.font = '10px Arial';
+                elements.ctx.fillText(element.label, element.x + element.width/2, element.y + element.height + 12);
+            }
+            
+            function drawRiskMarker(risk) {
+                // Definir cor baseada no tipo de risco
+                let color;
+                switch(risk.type) {
+                    case 'biological': color = '#e74c3c'; break;
+                    case 'chemical': color = '#9b59b6'; break;
+                    case 'physical': color = '#3498db'; break;
+                    case 'ergonomic': color = '#f39c12'; break;
+                    default: color = '#333';
+                }
+                
+                // Desenhar círculo do marcador
+                elements.ctx.fillStyle = color;
+                elements.ctx.beginPath();
+                elements.ctx.arc(risk.x, risk.y, 12, 0, Math.PI * 2);
+                elements.ctx.fill();
+                
+                // Adicionar borda baseada no nível de biossegurança
+                elements.ctx.strokeStyle = getBiosafetyLevelColor(risk.biosafetyLevel);
+                elements.ctx.lineWidth = 3;
+                elements.ctx.stroke();
+                
+                // Adicionar ícone
+                elements.ctx.fillStyle = '#fff';
+                elements.ctx.font = '12px Arial';
+                elements.ctx.textAlign = 'center';
+                elements.ctx.textBaseline = 'middle';
+                
+                let icon = '';
+                switch(risk.type) {
+                    case 'biological': icon = '☣'; break;
+                    case 'chemical': icon = '⚠'; break;
+                    case 'physical': icon = '⚡'; break;
+                    case 'ergonomic': icon = '⚠'; break;
+                }
+                
+                elements.ctx.fillText(icon, risk.x, risk.y);
+            }
+            
+            function drawSelection(element) {
+                elements.ctx.strokeStyle = '#3498db';
+                elements.ctx.lineWidth = 2;
+                elements.ctx.setLineDash([5, 5]);
+                
+                if (element.type && element.type.startsWith('risk-')) {
+                    // Elemento é um marcador de risco
+                    elements.ctx.beginPath();
+                    elements.ctx.arc(element.x, element.y, 15, 0, Math.PI * 2);
+                    elements.ctx.stroke();
+                } else {
+                    // Elemento do laboratório
+                    elements.ctx.strokeRect(element.x, element.y, element.width, element.height);
+                }
+                
+                elements.ctx.setLineDash([]);
+            }
+            
+            function getElementAtPosition(x, y) {
+                // Primeiro verificar marcadores de risco (por terem área menor)
+                for (let i = state.risks.length - 1; i >= 0; i--) {
+                    const risk = state.risks[i];
+                    const distance = Math.sqrt((risk.x - x) ** 2 + (risk.y - y) ** 2);
+                    if (distance <= 12) {
+                        return risk;
+                    }
+                }
+                
+                // Depois verificar elementos do laboratório
+                for (let i = state.elements.length - 1; i >= 0; i--) {
+                    const element = state.elements[i];
+                    if (x >= element.x && x <= element.x + element.width &&
+                        y >= element.y && y <= element.y + element.height) {
+                        return element;
+                    }
+                }
+                
+                return null;
+            }
+            
+            // Funções de zoom e pan
+            function zoomIn() {
+                state.scale = Math.min(3, state.scale * 1.2);
+                draw();
+            }
+            
+            function zoomOut() {
+                state.scale = Math.max(0.5, state.scale / 1.2);
+                draw();
+            }
+            
+            function resetZoom() {
+                state.scale = 1;
+                state.offsetX = 0;
+                state.offsetY = 0;
+                draw();
+            }
+            
+            function handleWheel(e) {
+                e.preventDefault();
+                
+                const rect = elements.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                // Zoom em relação à posição do mouse
+                const zoomFactor = 1.1;
+                const worldMouseX = (mouseX - state.offsetX) / state.scale;
+                const worldMouseY = (mouseY - state.offsetY) / state.scale;
+                
+                if (e.deltaY < 0) {
+                    // Zoom in
+                    state.scale *= zoomFactor;
+                } else {
+                    // Zoom out
+                    state.scale /= zoomFactor;
+                }
+                
+                // Limitar zoom
+                state.scale = Math.max(0.5, Math.min(3, state.scale));
+                
+                // Ajustar offset para manter o zoom centrado no mouse
+                state.offsetX = mouseX - worldMouseX * state.scale;
+                state.offsetY = mouseY - worldMouseY * state.scale;
+                
+                draw();
+            }
+            
+            function startDragging(e) {
+                // Só iniciar arrasto se não estiver desenhando e se a ferramenta for "select"
+                if (state.currentTool !== 'select' || state.drawing) return;
+                
+                state.isDragging = true;
+                state.dragStartX = e.clientX - state.offsetX;
+                state.dragStartY = e.clientY - state.offsetY;
+                elements.canvas.style.cursor = 'grabbing';
+            }
+            
+            function dragCanvas(e) {
+                if (!state.isDragging) return;
+                
+                state.offsetX = e.clientX - state.dragStartX;
+                state.offsetY = e.clientY - state.dragStartY;
+                draw();
+            }
+            
+            function stopDragging() {
+                state.isDragging = false;
+                elements.canvas.style.cursor = 'default';
+            }
+            
+            // Funções para dispositivos móveis (touch)
+            function handleTouchStart(e) {
+                e.preventDefault();
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    const rect = elements.canvas.getBoundingClientRect();
+                    const x = (touch.clientX - rect.left - state.offsetX) / state.scale;
+                    const y = (touch.clientY - rect.top - state.offsetY) / state.scale;
+                    
+                    // Simular clique do mouse
+                    const mouseEvent = new MouseEvent('mousedown', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                    elements.canvas.dispatchEvent(mouseEvent);
+                }
+            }
+            
+            function handleTouchMove(e) {
+                e.preventDefault();
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    
+                    // Simular movimento do mouse
+                    const mouseEvent = new MouseEvent('mousemove', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                    elements.canvas.dispatchEvent(mouseEvent);
+                }
+            }
+            
+            function handleTouchEnd(e) {
+                e.preventDefault();
+                // Simular soltar botão do mouse
+                const mouseEvent = new MouseEvent('mouseup');
+                elements.canvas.dispatchEvent(mouseEvent);
+            }
+            
+            // Funções de interface
+            function toggleToolbar() {
+                elements.toolbar.classList.toggle('active');
+            }
+            
+            function showPropertiesPanel(element) {
+                let content = '';
+                
+                if (element.type && element.type.startsWith('risk-')) {
+                    // Painel para marcador de risco
+                    content = `
+                        <h4>Marcador de Risco</h4>
+                        <p><strong>Tipo:</strong> ${getRiskTypeName(element.type)}</p>
+                        <p><strong>Categoria:</strong> ${element.category}</p>
+                        <p><strong>Nível de Biossegurança:</strong> ${element.biosafetyLevel.toUpperCase()}</p>
+                        <p><strong>Descrição:</strong> ${element.description || 'Nenhuma'}</p>
+                        <button class="btn-primary w-100 mt-10" id="edit-risk-btn">
+                            <i class="fas fa-edit"></i> Editar Risco
+                        </button>
+                    `;
+                } else {
+                    // Painel para elemento do laboratório
+                    content = `
+                        <h4>${element.label}</h4>
+                        <p><strong>Tipo:</strong> ${element.type}</p>
+                        <p><strong>Posição:</strong> X: ${Math.round(element.x)}, Y: ${Math.round(element.y)}</p>
+                        <p><strong>Tamanho:</strong> ${Math.round(element.width)} × ${Math.round(element.height)}</p>
+                        <button class="btn-danger w-100 mt-10" id="delete-element-btn">
+                            <i class="fas fa-trash-alt"></i> Excluir Elemento
+                        </button>
+                    `;
+                }
+                
+                elements.propertiesPanel.innerHTML = content;
+                elements.propertiesPanel.classList.add('active');
+                
+                // Adicionar eventos aos botões do painel
+                setTimeout(() => {
+                    const editBtn = document.getElementById('edit-risk-btn');
+                    const deleteBtn = document.getElementById('delete-element-btn');
+                    
+                    if (editBtn) {
+                        editBtn.addEventListener('click', () => {
+                            showRiskModal(element);
+                        });
+                    }
+                    
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', () => {
+                            state.elements = state.elements.filter(el => el.id !== element.id);
+                            state.selectedElement = null;
+                            elements.propertiesPanel.classList.remove('active');
+                            draw();
+                        });
+                    }
+                }, 10);
+            }
+            
+            function updateStatus() {
+                let toolName = '';
+                switch(state.currentTool) {
+                    case 'select': toolName = 'Selecionar'; break;
+                    case 'wall': toolName = 'Parede'; break;
+                    case 'door': toolName = 'Porta'; break;
+                    case 'counter': toolName = 'Bancada'; break;
+                    case 'fume-hood': toolName = 'Capela'; break;
+                    case 'free-draw': toolName = 'Desenho Livre'; break;
+                    default:
+                        if (state.currentTool.startsWith('risk-')) {
+                            toolName = `Marcador de Risco (${getRiskTypeName(state.currentTool)})`;
+                        } else {
+                            toolName = state.currentTool;
+                        }
+                }
+                
+                let biosafetyName = '';
+                switch(state.currentBiosafetyLevel) {
+                    case 'nb1': biosafetyName = 'NB1 - Risco Mínimo'; break;
+                    case 'nb2': biosafetyName = 'NB2 - Risco Moderado'; break;
+                    case 'nb3': biosafetyName = 'NB3 - Risco Elevado'; break;
+                    case 'nb4': biosafetyName = 'NB4 - Risco Máximo'; break;
+                }
+                
+                elements.status.textContent = `Ferramenta: ${toolName} | Nível de Biossegurança: ${biosafetyName}`;
+            }
+            
+            function getRiskTypeName(type) {
+                switch(type) {
+                    case 'biological': return 'Biológico';
+                    case 'chemical': return 'Químico';
+                    case 'physical': return 'Físico';
+                    case 'ergonomic': return 'Ergonômico';
+                    default: return type;
+                }
+            }
+            
+            function getBiosafetyLevelColor(level) {
+                switch(level) {
+                    case 'nb1': return '#27ae60';
+                    case 'nb2': return '#f1c40f';
+                    case 'nb3': return '#e67e22';
+                    case 'nb4': return '#e74c3c';
+                    default: return '#333';
+                }
+            }
+            
+            // Funções de salvar/carregar
+            function saveMap() {
+                const mapData = {
+                    elements: state.elements,
+                    risks: state.risks,
+                    nextId: state.nextId,
+                    metadata: {
+                        name: `Mapa de Riscos ${new Date().toLocaleDateString()}`,
+                        created: new Date().toISOString(),
+                        version: '1.0'
+                    }
+                };
+                
+                const dataStr = JSON.stringify(mapData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                // Criar link de download
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `mapa-riscos-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Também salvar no localStorage para recuperação rápida
+                localStorage.setItem('labRiskMap_backup', dataStr);
+                
+                alert('Mapa salvo com sucesso!');
+            }
+            
+            function loadMap(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const mapData = JSON.parse(event.target.result);
+                        
+                        // Validar dados
+                        if (!mapData.elements || !mapData.risks) {
+                            throw new Error('Formato de arquivo inválido');
+                        }
+                        
+                        // Carregar dados
+                        state.elements = mapData.elements || [];
+                        state.risks = mapData.risks || [];
+                        state.nextId = mapData.nextId || state.nextId;
+                        
+                        // Redesenhar
+                        draw();
+                        alert('Mapa carregado com sucesso!');
+                    } catch (error) {
+                        alert('Erro ao carregar o arquivo: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+                e.target.value = ''; // Resetar input
+            }
+            
+            function clearMap() {
+                if (confirm('Tem certeza que deseja limpar o mapa? Esta ação não pode ser desfeita.')) {
+                    state.elements = [];
+                    state.risks = [];
+                    state.selectedElement = null;
+                    state.nextId = 1;
+                    resetZoom();
+                    elements.propertiesPanel.classList.remove('active');
+                    draw();
+                }
+            }
+            
+            // Funções de exportação
+            function exportImage() {
+                // Criar um canvas temporário para exportação em alta qualidade
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Definir tamanho maior para melhor qualidade
+                tempCanvas.width = elements.canvas.width * 2;
+                tempCanvas.height = elements.canvas.height * 2;
+                
+                // Desenhar no canvas temporário
+                tempCtx.fillStyle = '#fff';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                
+                // Aplicar transformações
+                tempCtx.save();
+                tempCtx.translate(state.offsetX * 2, state.offsetY * 2);
+                tempCtx.scale(state.scale * 2, state.scale * 2);
+                
+                // Desenhar grade de fundo
+                const gridSize = 20;
+                const width = tempCanvas.width / (state.scale * 2);
+                const height = tempCanvas.height / (state.scale * 2);
+                
+                tempCtx.strokeStyle = '#e0e0e0';
+                tempCtx.lineWidth = 1;
+                
+                for (let x = 0; x <= width; x += gridSize) {
+                    tempCtx.beginPath();
+                    tempCtx.moveTo(x, 0);
+                    tempCtx.lineTo(x, height);
+                    tempCtx.stroke();
+                }
+                
+                for (let y = 0; y <= height; y += gridSize) {
+                    tempCtx.beginPath();
+                    tempCtx.moveTo(0, y);
+                    tempCtx.lineTo(width, y);
+                    tempCtx.stroke();
+                }
+                
+                // Desenhar elementos
+                state.elements.forEach(element => {
+                    tempCtx.fillStyle = element.color;
+                    tempCtx.fillRect(element.x, element.y, element.width, element.height);
+                    tempCtx.strokeStyle = '#333';
+                    tempCtx.lineWidth = 2;
+                    tempCtx.strokeRect(element.x, element.y, element.width, element.height);
+                    
+                    // Adicionar ícone
+                    tempCtx.fillStyle = '#fff';
+                    tempCtx.font = '28px Arial';
+                    tempCtx.textAlign = 'center';
+                    tempCtx.textBaseline = 'middle';
+                    
+                    let icon = '';
+                    switch(element.type) {
+                        case 'wall': icon = '🧱'; break;
+                        case 'door': icon = '🚪'; break;
+                        case 'counter': icon = '🔬'; break;
+                        case 'fume-hood': icon = '💨'; break;
+                    }
+                    
+                    tempCtx.fillText(icon, element.x + element.width/2, element.y + element.height/2);
+                    
+                    // Adicionar rótulo
+                    tempCtx.fillStyle = '#333';
+                    tempCtx.font = '20px Arial';
+                    tempCtx.fillText(element.label, element.x + element.width/2, element.y + element.height + 24);
+                });
+                
+                // Desenhar marcadores de risco
+                state.risks.forEach(risk => {
+                    let color;
+                    switch(risk.type) {
+                        case 'biological': color = '#e74c3c'; break;
+                        case 'chemical': color = '#9b59b6'; break;
+                        case 'physical': color = '#3498db'; break;
+                        case 'ergonomic': color = '#f39c12'; break;
+                    }
+                    
+                    tempCtx.fillStyle = color;
+                    tempCtx.beginPath();
+                    tempCtx.arc(risk.x, risk.y, 24, 0, Math.PI * 2);
+                    tempCtx.fill();
+                    
+                    tempCtx.strokeStyle = getBiosafetyLevelColor(risk.biosafetyLevel);
+                    tempCtx.lineWidth = 6;
+                    tempCtx.stroke();
+                    
+                    tempCtx.fillStyle = '#fff';
+                    tempCtx.font = '24px Arial';
+                    tempCtx.textAlign = 'center';
+                    tempCtx.textBaseline = 'middle';
+                    
+                    let icon = '';
+                    switch(risk.type) {
+                        case 'biological': icon = '☣'; break;
+                        case 'chemical': icon = '⚠'; break;
+                        case 'physical': icon = '⚡'; break;
+                        case 'ergonomic': icon = '⚠'; break;
+                    }
+                    
+                    tempCtx.fillText(icon, risk.x, risk.y);
+                });
+                
+                tempCtx.restore();
+                
+                // Adicionar título e legenda
+                tempCtx.fillStyle = '#2c3e50';
+                tempCtx.font = 'bold 40px Arial';
+                tempCtx.textAlign = 'left';
+                tempCtx.fillText('Mapa de Riscos para Laboratório', 50, 50);
+                
+                tempCtx.font = '20px Arial';
+                tempCtx.fillText(`Gerado em: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 50, 90);
+                
+                // Adicionar legenda
+                let legendY = tempCanvas.height - 150;
+                tempCtx.fillStyle = '#333';
+                tempCtx.font = 'bold 24px Arial';
+                tempCtx.fillText('Legenda:', 50, legendY);
+                
+                legendY += 40;
+                const legendItems = [
+                    { color: '#e74c3c', text: 'Risco Biológico' },
+                    { color: '#9b59b6', text: 'Risco Químico' },
+                    { color: '#3498db', text: 'Risco Físico' },
+                    { color: '#f39c12', text: 'Risco Ergonômico' }
+                ];
+                
+                legendItems.forEach((item, index) => {
+                    tempCtx.fillStyle = item.color;
+                    tempCtx.beginPath();
+                    tempCtx.arc(80, legendY + index * 35, 12, 0, Math.PI * 2);
+                    tempCtx.fill();
+                    
+                    tempCtx.fillStyle = '#333';
+                    tempCtx.font = '20px Arial';
+                    tempCtx.fillText(item.text, 110, legendY + index * 35 + 5);
+                });
+                
+                // Converter para imagem e fazer download
+                const link = document.createElement('a');
+                link.href = tempCanvas.toDataURL('image/png', 1.0);
+                link.download = `mapa-riscos-${new Date().toISOString().slice(0, 10)}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            function exportPdf() {
+                // Verificar se jsPDF está disponível
+                if (typeof window.jspdf === 'undefined') {
+                    alert('Biblioteca jsPDF não carregada. Por favor, verifique sua conexão.');
+                    return;
+                }
+                
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('landscape', 'mm', 'a4');
+                
+                // Adicionar título
+                pdf.setFontSize(20);
+                pdf.setTextColor(44, 62, 80);
+                pdf.text('Mapa de Riscos para Laboratório', 20, 20);
+                
+                pdf.setFontSize(12);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Gerado em: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 20, 30);
+                
+                // Obter imagem do canvas
+                const canvas = elements.canvas;
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Adicionar imagem ao PDF
+                const imgWidth = 250;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 20, 40, imgWidth, imgHeight);
+                
+                // Adicionar informações sobre riscos
+                let startY = 40 + imgHeight + 10;
+                
+                pdf.setFontSize(14);
+                pdf.setTextColor(44, 62, 80);
+                pdf.text('Resumo de Riscos Identificados:', 20, startY);
+                
+                startY += 10;
+                pdf.setFontSize(10);
+                pdf.setTextColor(80, 80, 80);
+                
+                // Contar riscos por tipo
+                const riskCounts = {
+                    biological: 0,
+                    chemical: 0,
+                    physical: 0,
+                    ergonomic: 0
+                };
+                
+                state.risks.forEach(risk => {
+                    riskCounts[risk.type] = (riskCounts[risk.type] || 0) + 1;
+                });
+                
+                const riskTypes = [
+                    { type: 'biological', name: 'Biológicos', color: '#e74c3c' },
+                    { type: 'chemical', name: 'Químicos', color: '#9b59b6' },
+                    { type: 'physical', name: 'Físicos', color: '#3498db' },
+                    { type: 'ergonomic', name: 'Ergonômicos', color: '#f39c12' }
+                ];
+                
+                riskTypes.forEach((riskType, index) => {
+                    const count = riskCounts[riskType.type] || 0;
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text(`${riskType.name}: ${count}`, 20 + (index % 2) * 100, startY + Math.floor(index / 2) * 6);
+                });
+                
+                startY += 20;
+                
+                // Adicionar detalhes dos riscos se houver espaço
+                if (state.risks.length > 0 && startY < 180) {
+                    pdf.setFontSize(12);
+                    pdf.setTextColor(44, 62, 80);
+                    pdf.text('Detalhes dos Riscos:', 20, startY);
+                    
+                    startY += 6;
+                    pdf.setFontSize(9);
+                    
+                    // Mostrar apenas os primeiros riscos para não exceder a página
+                    const maxRisks = Math.min(state.risks.length, 5);
+                    for (let i = 0; i < maxRisks; i++) {
+                        const risk = state.risks[i];
+                        const riskName = getRiskTypeName(risk.type);
+                        pdf.text(`${i+1}. ${riskName} - ${risk.category} (${risk.biosafetyLevel.toUpperCase()})`, 20, startY);
+                        startY += 5;
+                    }
+                    
+                    if (state.risks.length > maxRisks) {
+                        pdf.text(`... e mais ${state.risks.length - maxRisks} riscos`, 20, startY);
+                    }
+                }
+                
+                // Adicionar legenda
+                pdf.setFontSize(10);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text('Legenda:', 20, 190);
+                
+                // Adicionar círculos coloridos para a legenda
+                const legendItems = [
+                    { color: [231, 76, 60], text: 'Biológico' },
+                    { color: [155, 89, 182], text: 'Químico' },
+                    { color: [52, 152, 219], text: 'Físico' },
+                    { color: [243, 156, 18], text: 'Ergonômico' }
+                ];
+                
+                legendItems.forEach((item, index) => {
+                    pdf.setFillColor(item.color[0], item.color[1], item.color[2]);
+                    pdf.circle(20, 195 + index * 6, 1.5, 'F');
+                    
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text(item.text, 25, 198 + index * 6);
+                });
+                
+                // Adicionar níveis de biossegurança
+                pdf.setTextColor(100, 100, 100);
+                pdf.text('Níveis de Biossegurança:', 100, 190);
+                
+                const biosafetyLevels = [
+                    { level: 'NB1', color: [39, 174, 96], desc: 'Risco Mínimo' },
+                    { level: 'NB2', color: [241, 196, 15], desc: 'Risco Moderado' },
+                    { level: 'NB3', color: [230, 126, 34], desc: 'Risco Elevado' },
+                    { level: 'NB4', color: [231, 76, 60], desc: 'Risco Máximo' }
+                ];
+                
+                biosafetyLevels.forEach((level, index) => {
+                    pdf.setDrawColor(level.color[0], level.color[1], level.color[2]);
+                    pdf.setLineWidth(1);
+                    pdf.rect(100, 194 + index * 6, 4, 4);
+                    
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text(`${level.level}: ${level.desc}`, 107, 198 + index * 6);
+                });
+                
+                // Salvar PDF
+                pdf.save(`mapa-riscos-${new Date().toISOString().slice(0, 10)}.pdf`);
+            }
+            
+            // Funções de utilitário
+            function checkOrientation() {
+                if (window.innerWidth <= 768 && window.innerHeight > window.innerWidth) {
+                    // Modo retrato em dispositivo móvel
+                    elements.orientationWarning.style.display = 'flex';
+                } else {
+                    elements.orientationWarning.style.display = 'none';
+                }
+            }
+            
+            function handleResize() {
+                checkOrientation();
+                draw();
+            }
+            
+            function handleKeyDown(e) {
+                // Atalhos de teclado
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key.toLowerCase()) {
+                        case 's':
+                            e.preventDefault();
+                            saveMap();
+                            break;
+                        case 'z':
+                            e.preventDefault();
+                            // Implementar undo se necessário
+                            break;
+                        case 'y':
+                            e.preventDefault();
+                            // Implementar redo se necessário
+                            break;
+                    }
+                }
+                
+                // Teclas de ferramentas
+                switch(e.key) {
+                    case '1':
+                        setTool('select');
+                        break;
+                    case '2':
+                        setTool('wall');
+                        break;
+                    case '3':
+                        setTool('door');
+                        break;
+                    case '4':
+                        setTool('counter');
+                        break;
+                    case '5':
+                        setTool('fume-hood');
+                        break;
+                    case '6':
+                        setTool('free-draw');
+                        break;
+                    case '7':
+                        setTool('risk-biological');
+                        break;
+                    case '8':
+                        setTool('risk-chemical');
+                        break;
+                    case '9':
+                        setTool('risk-physical');
+                        break;
+                    case '0':
+                        setTool('risk-ergonomic');
+                        break;
+                    case 'Escape':
+                        state.selectedElement = null;
+                        elements.propertiesPanel.classList.remove('active');
+                        draw();
+                        break;
+                }
+            }
+            
+            // Retornar API pública
+            return {
+                init,
+                saveMap,
+                loadMap,
+                clearMap,
+                exportImage,
+                exportPdf
+            };
+        })();
+        
+        // Inicializar a aplicação quando o DOM estiver carregado
+        document.addEventListener('DOMContentLoaded', function() {
+            App.init();
+            
+            // Carregar backup do localStorage se existir
+            const backup = localStorage.getItem('labRiskMap_backup');
+            if (backup) {
+                if (confirm('Encontramos um mapa salvo anteriormente. Deseja carregá-lo?')) {
+                    try {
+                        const mapData = JSON.parse(backup);
+                        // Recarregar os dados (isso precisaria de uma função pública no App)
+                        // Para simplificar, apenas informamos ao usuário
+                        alert('Use o botão "Carregar Mapa" e selecione o arquivo backup.json do localStorage.');
+                    } catch (e) {
+                        console.error('Erro ao carregar backup:', e);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
