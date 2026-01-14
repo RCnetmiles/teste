@@ -1,327 +1,323 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jogo de Rotulagem Química</title>
+    <title>Lab Labeler: Protocolo GHS</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: monospace;
-            background-color: #f0f0f0;
+        :root {
+            --paper-bg: #d2b48c;
+            --lab-bg: #2c3e50;
+            --ui-panel: #34495e;
+            --accent: #e67e22;
+            --text: #ecf0f1;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            height: 100%; font-family: 'Courier New', Courier, monospace;
+            background: var(--lab-bg); color: var(--text);
+            overflow: hidden;
+        }
+
+        /* Layout Principal */
+        #game-container {
             display: flex;
             flex-direction: column;
             height: 100vh;
-            overflow: hidden;
         }
-        #top-section {
-            height: 50vh;
-            background-color: #ddd;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-bottom: 2px solid #000;
-        }
-        #product-display {
-            width: 80%;
-            height: 80%;
-            background-color: #fff;
-            border: 1px solid #000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-        }
-        #bottle {
-            width: 100px;
-            height: 200px;
-            background-color: #ccc;
-            border: 1px solid #000;
-            border-radius: 10px 10px 0 0;
-            position: relative;
-        }
-        #bottle::before {
-            content: '';
-            position: absolute;
-            top: -20px;
-            left: 40px;
-            width: 20px;
-            height: 20px;
-            background-color: #ccc;
-            border: 1px solid #000;
-            border-radius: 50%;
-        }
-        #label {
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            width: 80px;
-            height: 100px;
-            background-color: #fff;
-            border: 1px solid #000;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            padding: 5px;
-        }
-        .pictogram {
-            width: 30px;
-            height: 30px;
-            margin: 2px;
-            background-size: cover;
-        }
-        #bottom-section {
-            height: 50vh;
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-        }
-        #controls {
+
+        /* Parte Superior: O Frasco */
+        #visual-area {
             flex: 1;
             display: flex;
-            flex-direction: column;
-        }
-        #menu-button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-        }
-        #pictograms-area {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin: 10px 0;
-        }
-        .pictogram-option {
-            width: 40px;
-            height: 40px;
-            margin: 5px;
-            background-size: cover;
-            cursor: pointer;
-            border: 1px solid #000;
-        }
-        .selected {
-            border: 2px solid red;
-        }
-        #containers {
-            display: flex;
-            justify-content: center;
-            margin: 10px 0;
-        }
-        .container-option {
-            padding: 10px;
-            margin: 0 10px;
-            border: 1px solid #000;
-            cursor: pointer;
-        }
-        #store-button {
-            background-color: #28a745;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        #modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
             justify-content: center;
             align-items: center;
+            position: relative;
+            background: radial-gradient(circle, #34495e 0%, #1a252f 100%);
+            border-bottom: 4px solid #000;
         }
-        #modal-content {
-            background-color: #fff;
-            padding: 20px;
-            border: 1px solid #000;
-            max-width: 80%;
-            overflow-y: auto;
+
+        .bottle {
+            width: 120px;
+            height: 180px;
+            border: 3px solid #eee;
+            border-radius: 10px 10px 5px 5px;
+            position: relative;
+            transition: all 0.3s;
         }
-        #close-modal {
-            float: right;
+        .glass { background: rgba(200, 230, 255, 0.3); border-color: #add8e6; }
+        .plastic { background: #fdfdfd; border-color: #ccc; }
+
+        .label-preview {
+            width: 80%;
+            height: 60%;
+            background: white;
+            margin: 30% auto 0;
+            padding: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 2px;
+        }
+
+        .pictogram-mini {
+            width: 25px;
+            height: 25px;
+            border: 1px solid red;
+        }
+
+        /* Parte Inferior: Comandos */
+        #ui-area {
+            flex: 1;
+            background: var(--ui-panel);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        button {
+            background: #95a5a6;
+            border: none;
+            padding: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
             cursor: pointer;
+            border-bottom: 4px solid #7f8c8d;
+        }
+        button:active { border-bottom: 0; transform: translateY(2px); }
+        button.active { background: var(--accent); color: white; border-color: #d35400; }
+
+        /* Pictogramas GHS */
+        .pictogram-selector {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            background: #bdc3c7;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .pic-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border: 1px solid #777;
+            background-color: white;
+        }
+
+        /* Modal do Formulário */
+        #document-overlay {
+            position: absolute;
+            top: 10%; left: 5%; width: 90%; height: 80%;
+            background: var(--paper-bg);
+            color: #333;
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.8);
+            display: none;
+            z-index: 100;
+            border: 1px solid #8b4513;
+        }
+
+        .score-screen {
+            position: fixed; top: 0; left:0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 200;
         }
     </style>
 </head>
 <body>
-    <div id="top-section">
-        <div id="product-display">
-            <div id="bottle">
-                <div id="label"></div>
-            </div>
-            <p id="product-name">Produto: Carregando...</p>
+
+<div id="game-container">
+    <div id="visual-area">
+        <div id="main-bottle" class="bottle plastic">
+            <div class="label-preview" id="label-view"></div>
         </div>
-    </div>
-    <div id="bottom-section">
-        <div id="controls">
-            <div id="menu-button">Abrir Formulário</div>
-            <div id="pictograms-area"></div>
-            <div id="containers">
-                <div class="container-option" data-type="vidro">Vidro</div>
-                <div class="container-option" data-type="plastico">Plástico</div>
-            </div>
-            <div id="store-button">Armazenar</div>
-        </div>
-    </div>
-    <div id="modal">
-        <div id="modal-content">
-            <span id="close-modal">X</span>
-            <h2>Formulário do Produto</h2>
-            <p id="form-description"></p>
+        <div id="product-tag" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 5px;">
+            Amostra #<span id="current-index">1</span>
         </div>
     </div>
 
-    <script>
-        // Dados dos produtos (5 exemplos)
-        const products = [
-            {
-                name: "Álcool Etílico (Etanol)",
-                description: "Substância inflamável, volátil, utilizada como solvente e desinfetante. Perigo: Inflamável. Recomendado recipiente de vidro. Pictogramas: Chama.",
-                correctContainer: "vidro",
-                correctPictograms: ["flame"]
-            },
-            {
-                name: "Ácido Clorídrico",
-                description: "Ácido forte, corrosivo para metais e tecidos. Perigo: Corrosivo. Recomendado recipiente de plástico. Pictogramas: Corrosão.",
-                correctContainer: "plastico",
-                correctPictograms: ["corrosion"]
-            },
-            {
-                name: "Peróxido de Hidrogênio",
-                description: "Agente oxidante, corrosivo em concentrações altas. Perigo: Oxidante e corrosivo. Recomendado recipiente de plástico. Pictogramas: Chama sobre círculo, Corrosão.",
-                correctContainer: "plastico",
-                correctPictograms: ["flame-over-circle", "corrosion"]
-            },
-            {
-                name: "Formaldeído",
-                description: "Substância tóxica, carcinogênica, utilizada em preservação. Perigo: Tóxico agudo, carcinogênico. Recomendado recipiente de vidro. Pictogramas: Caveira e ossos cruzados, Perigo à saúde.",
-                correctContainer: "vidro",
-                correctPictograms: ["skull", "health-hazard"]
-            },
-            {
-                name: "Acetona",
-                description: "Solvente orgânico inflamável. Perigo: Inflamável e irritante. Recomendado recipiente de vidro. Pictogramas: Chama, Ponto de exclamação.",
-                correctContainer: "vidro",
-                correctPictograms: ["flame", "exclamation"]
-            }
-        ];
+    <div id="ui-area">
+        <div class="controls-grid">
+            <button onclick="toggleDoc()">📄 Ver Ficha</button>
+            <button id="btn-glass" onclick="setMaterial('glass')">Vidro</button>
+            <button id="btn-plastic" onclick="setMaterial('plastic')" class="active">Plástico</button>
+        </div>
 
-        // Pictogramas disponíveis (usando placeholders; em produção, use URLs reais de imagens GHS)
-        const pictograms = [
-            { id: "flame", name: "Chama", url: "https://via.placeholder.com/30?text=Flame" },
-            { id: "corrosion", name: "Corrosão", url: "https://via.placeholder.com/30?text=Corrosion" },
-            { id: "flame-over-circle", name: "Oxidante", url: "https://via.placeholder.com/30?text=Oxidant" },
-            { id: "skull", name: "Tóxico", url: "https://via.placeholder.com/30?text=Skull" },
-            { id: "health-hazard", name: "Perigo à Saúde", url: "https://via.placeholder.com/30?text=Health" },
-            { id: "exclamation", name: "Irritante", url: "https://via.placeholder.com/30?text=!" },
-            { id: "environment", name: "Ambiental", url: "https://via.placeholder.com/30?text=Env" },
-            { id: "gas-cylinder", name: "Gás", url: "https://via.placeholder.com/30?text=Gas" },
-            { id: "exploding-bomb", name: "Explosivo", url: "https://via.placeholder.com/30?text=Bomb" }
-        ];
+        <div class="pictogram-selector" id="pic-grid">
+            <button class="pic-btn" onclick="togglePic('🔥')" title="Inflamável">🔥</button>
+            <button class="pic-btn" onclick="togglePic('💀')" title="Tóxico">💀</button>
+            <button class="pic-btn" onclick="togglePic('🧪')" title="Corrosivo">🧪</button>
+            <button class="pic-btn" onclick="togglePic('💥')" title="Explosivo">💥</button>
+            <button class="pic-btn" onclick="togglePic('⚠️')" title="Irritante">⚠️</button>
+            <button class="pic-btn" onclick="togglePic('⭕')" title="Oxidante">⭕</button>
+            <button class="pic-btn" onclick="togglePic('👤')" title="Saúde">👤</button>
+            <button class="pic-btn" onclick="togglePic('🐟')" title="Ambiente">🐟</button>
+            <button class="pic-btn" onclick="togglePic('☁️')" title="Gás sob pressão">☁️</button>
+        </div>
 
-        let currentProductIndex = 0;
-        let selectedContainer = null;
-        let selectedPictograms = [];
-        let score = 0;
+        <button style="background: #27ae60; border-color: #2ecc71; color: white; margin-top: auto; padding: 20px;" onclick="storeProduct()">
+            📥 ARMAZENAR (PRÓXIMO)
+        </button>
+    </div>
+</div>
 
-        function loadProduct() {
-            if (currentProductIndex >= products.length) {
-                alert(`Fim do jogo! Pontuação: \( {score}/ \){products.length}`);
-                return;
-            }
-            const product = products[currentProductIndex];
-            document.getElementById('product-name').textContent = `Produto: ${product.name}`;
-            document.getElementById('form-description').textContent = product.description;
-            resetSelections();
+<div id="document-overlay" onclick="toggleDoc()">
+    <h2 style="text-align: center; border-bottom: 2px solid #000;">FICHA DE PRODUTO</h2>
+    <p><strong>Nome:</strong> <span id="doc-name">---</span></p>
+    <p><strong>Descrição:</strong> <span id="doc-desc">---</span></p>
+    <p><strong>Propriedades:</strong> <span id="doc-prop">---</span></p>
+    <p style="margin-top: 50px; font-style: italic; font-size: 0.8em; color: #555;">Toque em qualquer lugar para fechar.</p>
+</div>
+
+<div class="score-screen" id="finish-screen">
+    <h1>RELATÓRIO FINAL</h1>
+    <p style="font-size: 2em;">Pontuação: <span id="final-score">0</span>%</p>
+    <button onclick="location.reload()" style="background: var(--accent);">Reiniciar Turno</button>
+</div>
+
+<script>
+    // Banco de dados dos produtos (Exemplos GHS/ABNT 14725)
+    const products = [
+        {
+            name: "Álcool Etílico 70%",
+            desc: "Líquido incolor, odor característico.",
+            prop: "Altamente inflamável. Causa irritação ocular grave.",
+            correctMaterial: "plastic",
+            correctPics: ["🔥", "⚠️"]
+        },
+        {
+            name: "Ácido Sulfúrico Concentrado",
+            desc: "Líquido viscoso, altamente reativo.",
+            prop: "Corrosivo para metais. Provoca queimaduras graves na pele.",
+            correctMaterial: "glass",
+            correctPics: ["🧪"]
+        },
+        {
+            name: "Hipoclorito de Sódio",
+            desc: "Solução para limpeza e desinfecção.",
+            prop: "Muito tóxico para a vida aquática. Corrosivo.",
+            correctMaterial: "plastic",
+            correctPics: ["🧪", "🐟"]
+        },
+        {
+            name: "Nitrogênio Líquido",
+            desc: "Gás liquefeito refrigerado.",
+            prop: "Contém gás sob pressão. Pode causar queimaduras criogênicas.",
+            correctMaterial: "glass",
+            correctPics: ["☁️"]
+        },
+        {
+            name: "Benzeno",
+            desc: "Solvente orgânico industrial.",
+            prop: "Pode causar câncer. Líquido e vapores inflamáveis. Tóxico.",
+            correctMaterial: "glass",
+            correctPics: ["🔥", "💀", "👤"]
         }
+    ];
 
-        function resetSelections() {
-            selectedContainer = null;
-            selectedPictograms = [];
-            document.querySelectorAll('.container-option').forEach(el => el.classList.remove('selected'));
-            document.querySelectorAll('.pictogram-option').forEach(el => el.classList.remove('selected'));
-            updateLabel();
+    let currentIndex = 0;
+    let score = 0;
+    let userPics = [];
+    let userMaterial = "plastic";
+
+    function updateDisplay() {
+        if (currentIndex >= products.length) {
+            showFinalScore();
+            return;
         }
+        
+        const p = products[currentIndex];
+        document.getElementById('current-index').innerText = currentIndex + 1;
+        document.getElementById('doc-name').innerText = p.name;
+        document.getElementById('doc-desc').innerText = p.desc;
+        document.getElementById('doc-prop').innerText = p.prop;
+        
+        // Reset label
+        userPics = [];
+        renderLabel();
+    }
 
-        function updateLabel() {
-            const label = document.getElementById('label');
-            label.innerHTML = '';
-            selectedPictograms.forEach(id => {
-                const pic = document.createElement('div');
-                pic.className = 'pictogram';
-                pic.style.backgroundImage = `url(${pictograms.find(p => p.id === id).url})`;
-                label.appendChild(pic);
-            });
-            const bottle = document.getElementById('bottle');
-            bottle.style.backgroundColor = selectedContainer === 'vidro' ? '#add8e6' : '#90ee90';
+    function toggleDoc() {
+        const doc = document.getElementById('document-overlay');
+        doc.style.display = (doc.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function setMaterial(type) {
+        userMaterial = type;
+        const bottle = document.getElementById('main-bottle');
+        bottle.className = 'bottle ' + type;
+        
+        document.getElementById('btn-glass').classList.toggle('active', type === 'glass');
+        document.getElementById('btn-plastic').classList.toggle('active', type === 'plastic');
+    }
+
+    function togglePic(emoji) {
+        const index = userPics.indexOf(emoji);
+        if (index > -1) {
+            userPics.splice(index, 1);
+        } else {
+            if (userPics.length < 4) userPics.push(emoji);
         }
+        renderLabel();
+    }
 
-        function initPictograms() {
-            const area = document.getElementById('pictograms-area');
-            pictograms.forEach(pic => {
-                const div = document.createElement('div');
-                div.className = 'pictogram-option';
-                div.style.backgroundImage = `url(${pic.url})`;
-                div.dataset.id = pic.id;
-                div.addEventListener('click', () => {
-                    const index = selectedPictograms.indexOf(pic.id);
-                    if (index > -1) {
-                        selectedPictograms.splice(index, 1);
-                        div.classList.remove('selected');
-                    } else {
-                        selectedPictograms.push(pic.id);
-                        div.classList.add('selected');
-                    }
-                    updateLabel();
-                });
-                area.appendChild(div);
-            });
-        }
-
-        document.getElementById('menu-button').addEventListener('click', () => {
-            document.getElementById('modal').style.display = 'flex';
+    function renderLabel() {
+        const view = document.getElementById('label-view');
+        view.innerHTML = '';
+        userPics.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'pictogram-mini';
+            div.innerText = p;
+            div.style.display = 'flex';
+            div.style.justifyContent = 'center';
+            div.style.alignItems = 'center';
+            view.appendChild(div);
         });
+    }
 
-        document.getElementById('close-modal').addEventListener('click', () => {
-            document.getElementById('modal').style.display = 'none';
-        });
+    function storeProduct() {
+        const p = products[currentIndex];
+        
+        // Lógica de Pontuação: 
+        // 50% pelo material, 50% pelos pictogramas corretos
+        let roundScore = 0;
+        
+        if (userMaterial === p.correctMaterial) roundScore += 50;
+        
+        const correctCount = p.correctPics.filter(x => userPics.includes(x)).length;
+        const wrongCount = userPics.filter(x => !p.correctPics.includes(x)).length;
+        
+        let picScore = (correctCount / p.correctPics.length) * 50;
+        picScore -= (wrongCount * 10); // Penalidade por erro
+        
+        score += Math.max(0, roundScore + picScore);
+        
+        currentIndex++;
+        updateDisplay();
+    }
 
-        document.querySelectorAll('.container-option').forEach(el => {
-            el.addEventListener('click', () => {
-                document.querySelectorAll('.container-option').forEach(e => e.classList.remove('selected'));
-                el.classList.add('selected');
-                selectedContainer = el.dataset.type;
-                updateLabel();
-            });
-        });
+    function showFinalScore() {
+        const final = (score / (products.length * 100)) * 100;
+        document.getElementById('finish-screen').style.display = 'flex';
+        document.getElementById('final-score').innerText = Math.round(final);
+    }
 
-        document.getElementById('store-button').addEventListener('click', () => {
-            if (!selectedContainer || selectedPictograms.length === 0) {
-                alert('Selecione recipiente e pictogramas!');
-                return;
-            }
-            const product = products[currentProductIndex];
-            let points = 0;
-            if (selectedContainer === product.correctContainer) points += 0.5;
-            const correctPics = product.correctPictograms.sort();
-            const selectedSorted = selectedPictograms.sort();
-            if (correctPics.join(',') === selectedSorted.join(',')) points += 0.5;
-            if (points === 1) score++;
-            currentProductIndex++;
-            loadProduct();
-        });
+    // Inicializar
+    updateDisplay();
+</script>
 
-        // Inicialização
-        initPictograms();
-        loadProduct();
-    </script>
 </body>
 </html>
