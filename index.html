@@ -1,696 +1,1087 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Criador de Mapa de Risco</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Resolvendo Desafios</title>
     <style>
-        body { 
-            overscroll-behavior: none; 
-            touch-action: none; 
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        .grid-cell {
-            width: 40px;
-            height: 40px;
-            /* Flex centering for onscreen */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            /* Critical for html2canvas text alignment */
-            text-align: center;
-            line-height: 40px; 
-            vertical-align: middle;
-        }
-        /* Inner wrapper to help html2canvas calculate bounding box */
-        .cell-content {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            line-height: 1; /* Reset line height for the emoji itself */
-        }
+      :root {
+        --primary: #003366;
+        --secondary: #FF8C00;
+        --bg: #F4F7F6;
+        --card-bg: #FFFFFF;
+        --text: #333333;
+        --danger: #D32F2F;
+        --success: #388E3C;
+        --hp-high: #4CAF50;
+        --hp-med: #FF9800;
+        --hp-low: #F44336;
+        --gray: #B0BEC5;
+      }
 
-        .palette-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-        .palette-scroll::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-            border-radius: 3px;
-        }
-        /* Risk Circle Styles */
-        .risk-circle {
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            opacity: 0.85;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            pointer-events: none; /* Let clicks pass through to cell handler */
-            z-index: 20;
-        }
-        .risk-small { width: 15px; height: 15px; }
-        .risk-medium { width: 25px; height: 25px; }
-        .risk-large { width: 35px; height: 35px; }
-        
-        /* Animation for Reset */
-        @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            30% { transform: translate(3px, 2px) rotate(0deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            70% { transform: translate(3px, 1px) rotate(-1deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(1px, 2px) rotate(0deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
-        }
-        .shake-animation {
-            animation: shake 0.5s;
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
 
-        /* Specific Landscape Adjustments for Mobile/Tablet */
-        @media (orientation: landscape) {
-            #layout-wrapper {
-                flex-direction: row;
-            }
-            #controls-panel {
-                width: 320px; /* Fixed width sidebar */
-                height: 100%;
-                border-top: none;
-                border-left: 2px solid #e5e7eb;
-            }
-            #palette-container {
-                height: auto; /* Fill remaining height */
-                flex: 1;
-            }
-        }
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
 
-        /* Portrait Adjustments (Default) */
-        @media (orientation: portrait) {
-            #layout-wrapper {
-                flex-direction: column;
-            }
-            #controls-panel {
-                width: 100%;
-                height: auto;
-                max-height: 45vh; /* Limit height on portrait */
-                border-top: 2px solid #e5e7eb;
-                border-left: none;
-            }
-             #palette-container {
-                height: 250px; /* Fixed height for scrollable area in portrait */
-            }
-        }
+      /* Screens */
+      .screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        transition: opacity 0.3s ease;
+        z-index: 10;
+        background: var(--bg);
+      }
+
+      .hidden {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* Screen Shake Animation for Damage */
+      .shake {
+        animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+      }
+
+      @keyframes shake {
+        10%, 90% { transform: translate3d(-1px, 0, 0); }
+        20%, 80% { transform: translate3d(2px, 0, 0); }
+        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+        40%, 60% { transform: translate3d(4px, 0, 0); }
+      }
+
+      /* Intro Screen */
+      #intro-screen {
+        text-align: center;
+        background: linear-gradient(135deg, var(--primary) 0%, #001a33 100%);
+        color: white;
+      }
+
+      .logo-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        font-size: 2.2rem;
+        margin-bottom: 15px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+
+      p.subtitle {
+        font-size: 1rem;
+        opacity: 0.95;
+        margin-bottom: 30px;
+        max-width: 340px;
+        line-height: 1.6;
+        font-weight: 300;
+      }
+
+      /* Difficulty Selector */
+      .difficulty-container {
+        margin-bottom: 30px;
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .difficulty-label {
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.8;
+      }
+
+      .difficulty-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      .diff-btn {
+        flex: 1;
+        padding: 12px 5px;
+        background: rgba(255,255,255,0.1);
+        border: 2px solid rgba(255,255,255,0.3);
+        color: white;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+      }
+
+      .diff-btn:hover {
+        background: rgba(255,255,255,0.2);
+      }
+
+      .diff-btn.selected {
+        background: var(--secondary);
+        border-color: var(--secondary);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transform: scale(1.05);
+      }
+
+      /* Game HUD */
+      #game-hud {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px 20px;
+        background: white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .hud-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+      }
+
+      .score-display {
+        font-weight: 700;
+        color: var(--primary);
+        font-size: 1.2rem;
+      }
+      
+      .hud-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      #pause-btn {
+        background: none;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+      
+      #pause-btn:hover {
+        background: var(--primary);
+        color: white;
+      }
+
+      .hp-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: var(--text);
+        font-weight: 700;
+        letter-spacing: 1px;
+      }
+
+      .hp-bar-container {
+        width: 100%;
+        height: 16px;
+        background: #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #ccc;
+      }
+
+      .hp-bar-fill {
+        height: 100%;
+        width: 100%;
+        background: var(--hp-high);
+        transition: width 0.4s ease-out, background-color 0.4s ease;
+      }
+
+      /* Card Container */
+      #game-area {
+        flex: 1;
+        width: 100%;
+        max-width: 450px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 80px; /* Space for HUD */
+      }
+
+      .card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 25px;
+        width: 90%;
+        height: auto;
+        min-height: 400px;
+        box-shadow: 0 15px 35px rgba(0,51,102,0.15);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: absolute;
+        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s;
+        border-top: 6px solid var(--primary);
+      }
+
+      /* Boss Card Style */
+      .card.boss-card {
+        border-top: 6px solid var(--danger);
+        background: #FFF5F5;
+      }
+
+      /* New Header Layout for Timer */
+      .card-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .card-context {
+        font-size: 0.9rem;
+        color: var(--secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .boss-card .card-context {
+        color: var(--danger);
+      }
+
+      .card-timer {
+        font-size: 0.9rem;
+        font-weight: 700;
+        background-color: #FFF3E0;
+        color: var(--secondary);
+        padding: 4px 10px;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+      }
+
+      .card-timer.urgent {
+        background-color: var(--danger);
+        color: white;
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.9; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+
+      .card-question {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 20px;
+        line-height: 1.3;
+      }
+
+      .card-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      /* Options Buttons */
+      .option-btn {
+        background: white;
+        border: 2px solid #E0E0E0;
+        padding: 16px;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .option-btn:active {
+        transform: scale(0.98);
+      }
+
+      .option-btn.selected {
+        border-color: var(--primary);
+        background-color: #f0f4f8;
+      }
+
+      .option-btn:disabled {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+
+      /* Main Action Button */
+      .btn-primary {
+        background-color: var(--secondary);
+        color: white;
+        border: none;
+        padding: 16px 32px;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+        transition: transform 0.2s;
+        width: 100%;
+        margin-top: 20px;
+      }
+
+      .btn-primary:active {
+        transform: scale(0.95);
+      }
+
+      /* Modal Base Style */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      
+      .modal-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      
+      .modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 20px;
+        text-align: center;
+        max-width: 80%;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      @keyframes popIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+
+      /* Feedback Modal */
+      #feedback-modal {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: white;
+        padding: 30px 20px;
+        border-radius: 25px 25px 0 0;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+        z-index: 200;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      #feedback-modal.active {
+        transform: translateY(0);
+      }
+
+      .feedback-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin-bottom: 15px;
+      }
+
+      .correct { color: var(--success); }
+      .wrong { color: var(--danger); }
+
+      .feedback-text {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #555;
+        margin-bottom: 20px;
+      }
+
+      /* Updated Source Cite Style */
+      .source-cite {
+        font-size: 0.9rem;
+        color: var(--primary);
+        font-weight: 700;
+        font-style: italic;
+        display: block;
+        margin-top: 15px;
+        text-decoration: underline;
+        cursor: pointer;
+        transition: color 0.2s;
+        border-bottom: 2px solid transparent;
+      }
+      
+      .source-cite:hover {
+        color: var(--secondary);
+      }
+
+      /* Animations */
+      .slide-out-left {
+        transform: translateX(-150%) rotate(-20deg) !important;
+        opacity: 0;
+      }
+      
+      .slide-in-right {
+        animation: slideIn 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+      }
+
+      @keyframes slideIn {
+        from { transform: translateX(100%) rotate(10deg); opacity: 0; }
+        to { transform: translateX(0) rotate(0); opacity: 1; }
+      }
+
+      /* Icons */
+      .icon-bio::before { content: "☣️"; }
+      .icon-chem::before { content: "🧪"; }
+      .icon-phys::before { content: "☢️"; }
+      .icon-ppe::before { content: "🥽"; }
+      .icon-env::before { content: "🏗️"; }
+
     </style>
-</head>
-<body class="bg-gray-50 h-screen w-screen flex flex-col overflow-hidden font-sans text-slate-800">
-
-    <!-- HEADER -->
-    <header class="flex items-center justify-between px-4 py-3 shadow-md z-30 shrink-0 bg-[#003366]">
-        <div class="flex items-center gap-2">
-            <div class="bg-white p-1 rounded-full text-xl">🗺️</div>
-            <div>
-                <h1 class="text-white font-bold text-lg leading-tight">RiskMap Creator</h1>
-                <p class="text-blue-200 text-xs">Desenhe e Legende seu Mapa</p>
-            </div>
+  </head>
+  <body>
+    <!-- Intro Screen -->
+    <div id="intro-screen" class="screen">
+      <div class="logo-icon">🛡️</div>
+      <h1>Resolvendo Desafios</h1>
+      <p class="subtitle">
+        Mais um dia começa no laboratório. A equipe foi reduzida e hoje você está por conta própria.
+        <br><br>
+        De repente, demandas urgentes e situações de risco começam a surgir. Resolva os problemas antes que seja tarde!
+        <br><br>
+        <small style="color:rgba(255,255,255,0.7)">(Modo RPG: Erros causam dano à sua integridade. Cuidado!)</small>
+      </p>
+      
+      <div class="difficulty-container">
+        <div class="difficulty-label">Nível de Ameaça</div>
+        <div class="difficulty-buttons">
+          <button class="diff-btn selected" data-diff="normal">Normal</button>
+          <button class="diff-btn" data-diff="hard">Difícil</button>
         </div>
-        <button id="btn-download" class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-bold transition-colors shadow-sm active:scale-95">
-            <span>📷</span> Baixar
-        </button>
-    </header>
+      </div>
 
-    <!-- LAYOUT WRAPPER (Handles Portrait vs Landscape switch) -->
-    <div id="layout-wrapper" class="flex-1 flex overflow-hidden w-full">
-        
-        <!-- MAIN CANVAS -->
-        <main id="main-container" class="flex-1 relative overflow-hidden flex items-center justify-center bg-[#F3F4F6] cursor-grab active:cursor-grabbing">
-            <!-- Background Pattern -->
-            <div class="absolute inset-0 opacity-10 pointer-events-none" 
-                 style="background-image: radial-gradient(#003366 1px, transparent 1px); background-size: 20px 20px;">
-            </div>
-
-            <!-- Transform Container -->
-            <div id="transform-container" class="bg-white shadow-xl relative transition-transform duration-75 ease-out origin-center will-change-transform"
-                 style="width: 800px; height: 800px; transform: scale(0.5);">
-                
-                <!-- Layer 1: Infrastructure Grid -->
-                <div id="lab-grid" class="grid w-full h-full border-4 border-gray-800 absolute inset-0 z-0"
-                     style="grid-template-columns: repeat(20, 40px); grid-template-rows: repeat(20, 40px);">
-                    <!-- Cells generated by JS -->
-                </div>
-
-                <!-- Layer 2: Risk Circles Overlay -->
-                <div id="risk-layer" class="w-full h-full absolute inset-0 z-10 pointer-events-none">
-                    <!-- Risk circles injected here via JS -->
-                </div>
-                
-                <!-- Overlay lines (Aesthetics) -->
-                <div class="absolute inset-0 pointer-events-none border border-gray-300 opacity-20 z-20"></div>
-            </div>
-
-            <!-- Hint -->
-            <div id="hint" class="absolute top-4 bg-white/90 p-2 rounded shadow text-gray-600 text-sm animate-pulse pointer-events-none z-30">
-                👆 Arraste para mover, pince para zoom
-            </div>
-        </main>
-
-        <!-- CONTROLS & PALETTE -->
-        <div id="controls-panel" class="shrink-0 z-40 flex flex-col bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] landscape:shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.1)]">
-            
-            <!-- Top Controls -->
-            <div class="px-4 py-3 flex flex-col gap-3 w-full shrink-0">
-                
-                <!-- Mode Switcher -->
-                <div class="flex bg-gray-100 p-1 rounded-lg">
-                    <button id="mode-build" class="flex-1 py-2 rounded-md text-sm font-bold transition-all bg-white text-[#003366] shadow-sm">
-                        🏗️ Construir
-                    </button>
-                    <button id="mode-risk" class="flex-1 py-2 rounded-md text-sm font-bold transition-all text-gray-500 hover:text-gray-700">
-                        ⚠️ Legendar
-                    </button>
-                </div>
-
-                <!-- Action Row -->
-                <div class="flex gap-2 justify-between">
-                    <div class="flex gap-1 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
-                        <button id="btn-zoom-out" class="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-700 rounded hover:bg-gray-200 font-bold text-xl active:bg-gray-300">-</button>
-                        <button id="btn-zoom-in" class="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-700 rounded hover:bg-gray-200 font-bold text-xl active:bg-gray-300">+</button>
-                    </div>
-                    <button id="btn-reset" class="flex-1 px-4 h-10 flex items-center justify-center bg-gray-200 text-gray-700 rounded-lg hover:bg-red-100 hover:text-red-700 font-bold text-sm transition-colors active:scale-95">
-                        Limpar Tudo
-                    </button>
-                </div>
-            </div>
-
-            <!-- Palette (Dynamic Content) -->
-            <div class="bg-white border-t border-gray-100 w-full flex flex-col overflow-hidden">
-                <div id="palette-container" class="overflow-y-auto p-4 pb-20 palette-scroll">
-                    
-                    <!-- BUILD PALETTE -->
-                    <div id="palette-build" class="block">
-                        <div id="build-items-grid"></div>
-                    </div>
-
-                    <!-- RISK PALETTE -->
-                    <div id="palette-risk" class="hidden">
-                        
-                        <!-- Size Selector -->
-                        <div class="mb-4">
-                            <h3 class="text-gray-400 font-bold mb-2 text-xs uppercase tracking-wider">Tamanho do Risco</h3>
-                            <div class="flex gap-4 justify-center bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <button onclick="setRiskSize('small')" class="risk-size-btn w-8 h-8 rounded-full border-2 border-gray-300 bg-gray-200 hover:border-gray-500 transition-all flex items-center justify-center text-[10px]" data-size="small">P</button>
-                                <button onclick="setRiskSize('medium')" class="risk-size-btn w-10 h-10 rounded-full border-2 border-gray-300 bg-gray-200 hover:border-gray-500 transition-all flex items-center justify-center text-xs" data-size="medium">M</button>
-                                <button onclick="setRiskSize('large')" class="risk-size-btn w-12 h-12 rounded-full border-2 border-[#003366] bg-gray-300 transition-all flex items-center justify-center font-bold" data-size="large">G</button>
-                            </div>
-                        </div>
-
-                        <!-- Type Selector -->
-                        <div id="risk-types-grid" class="grid grid-cols-2 gap-3"></div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
+      <button id="start-btn" class="btn-primary">Iniciar Plantão</button>
     </div>
 
-    <!-- MAIN SCRIPT -->
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen hidden" style="justify-content: flex-start;">
+      <div id="game-hud">
+        <div class="hud-row">
+          <span class="score-display">XP: <span id="score-val">0</span></span>
+          <div class="hud-controls">
+            <button id="pause-btn" title="Pausar Jogo">⏸️</button>
+          </div>
+        </div>
+        <div class="hud-row" style="margin-top: 5px;">
+           <span class="hp-label" style="flex:1">Integridade do Traje</span>
+        </div>
+        <div class="hp-bar-container">
+          <div id="hp-bar" class="hp-bar-fill"></div>
+        </div>
+      </div>
+      
+      <div id="game-area">
+        <!-- Cards will be injected here -->
+      </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="pause-modal" class="modal-overlay">
+      <div class="modal-content">
+        <h2 style="color:var(--primary); margin-bottom:15px;">Jogo Pausado</h2>
+        <p style="margin-bottom:20px; color:#666;">Respire fundo e organize suas ideias.</p>
+        <button id="resume-btn" class="btn-primary">Retomar</button>
+      </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal">
+      <div id="feedback-header" class="feedback-header">
+        <!-- Icon and Status -->
+      </div>
+      <p id="feedback-reason" class="feedback-text"></p>
+      <a href="https://ctbio.fiocruz.br/wp-content/uploads/2023/08/Manual-de-Biosseguranca-Laboratorial-Quarta-Ed.-2021-OPAS.pdf" target="_blank" class="source-cite">📖 Ref: Manual de Biossegurança OPAS - Seção 3</a>
+      <button id="next-btn" class="btn-primary">Continuar</button>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="screen hidden" style="text-align: center;">
+      <div id="end-icon" style="font-size: 4rem; margin-bottom: 20px;"></div>
+      <h2 id="end-title" style="color: var(--primary); font-size: 2rem; margin-bottom: 10px;"></h2>
+      <p id="end-msg" style="color: #666; font-size: 1.1rem; margin-bottom: 30px;"></p>
+      <div style="font-size: 2rem; font-weight: bold; color: var(--secondary); margin-bottom: 30px;">
+        XP Final: <span id="final-score">0</span>
+      </div>
+      <button id="restart-btn" class="btn-primary">Novo Plantão</button>
+    </div>
+
     <script>
-        // --- CONSTANTS & DATA ---
-        const GRID_SIZE = 20;
-        const CELL_SIZE = 40;
+      // === GAME DATA ===
+      const SCENARIOS = [
+        {
+          id: 1,
+          title: "Caso 01: Tuberculose",
+          context: "Você recebeu uma amostra de escarro de um paciente com forte suspeita de tuberculose pulmonar para baciloscopia.",
+          cards: [
+            {
+              type: 'risk',
+              question: "Qual o principal tipo de risco associado a esta amostra?",
+              options: [
+                { id: 'bio', text: "Risco Biológico", isCorrect: true, icon: "☣️" },
+                { id: 'chem', text: "Risco Químico", isCorrect: false, icon: "🧪" },
+                { id: 'phys', text: "Risco Físico", isCorrect: false, icon: "☢️" }
+              ],
+              justification: "O Mycobacterium tuberculosis é um agente biológico patogênico. O risco primário é a inalação de aerossóis contendo o bacilo."
+            },
+            {
+              type: 'level',
+              question: "Qual o Nível de Biossegurança (NB) mínimo recomendado para manipulação da cultura?",
+              options: [
+                { id: 'nb1', text: "NB-1 (Básico)", isCorrect: false },
+                { id: 'nb2', text: "NB-2 (Moderado)", isCorrect: false },
+                { id: 'nb3', text: "NB-3 (Contenção)", isCorrect: true }
+              ],
+              justification: "Embora a baciloscopia direta possa ser feita em NB-2, a cultura e manipulação de concentrações de M. tuberculosis exigem NB-3 devido ao alto risco de transmissão por aerossol."
+            },
+            {
+              type: 'ppe',
+              question: "Qual EPI é indispensável para proteção respiratória neste caso?",
+              options: [
+                { id: 'surg', text: "Máscara Cirúrgica", isCorrect: false },
+                { id: 'n95', text: "Respirador N95 / PFF2", isCorrect: true },
+                { id: 'cloth', text: "Máscara de Tecido", isCorrect: false }
+              ],
+              justification: "Para proteção contra aerossóis biológicos finos, a máscara cirúrgica é insuficiente. O uso de respirador N95/PFF2 é obrigatório."
+            }
+          ]
+        },
+        {
+          id: 2,
+          title: "Caso 02: Derramamento Ácido",
+          context: "Um frasco de Ácido Sulfúrico Concentrado caiu e quebrou na bancada.",
+          cards: [
+            {
+              type: 'risk',
+              question: "Classifique o risco imediato deste acidente:",
+              options: [
+                { id: 'erg', text: "Ergonômico", isCorrect: false, icon: "🧘" },
+                { id: 'chem', text: "Químico", isCorrect: true, icon: "🧪" },
+                { id: 'acc', text: "Mecânico", isCorrect: false, icon: "🔨" }
+              ],
+              justification: "O Ácido Sulfúrico é altamente corrosivo e reativo, caracterizando um risco químico grave de queimaduras e vapores tóxicos."
+            },
+            {
+              type: 'environment',
+              question: "Qual equipamento de proteção coletiva (EPC) deveria ter sido usado na manipulação?",
+              options: [
+                { id: 'bsc', text: "Cabine de Segurança Biológica", isCorrect: false },
+                { id: 'fume', text: "Capela de Exaustão Química", isCorrect: true },
+                { id: 'flux', text: "Fluxo Laminar Horizontal", isCorrect: false }
+              ],
+              justification: "Manipulação de ácidos voláteis ou concentrados deve ser feita sob Capela de Exaustão Química para remover vapores."
+            }
+          ]
+        },
+        {
+          id: 3,
+          title: "Caso 03: Descarte de Agulhas",
+          context: "Após coleta de sangue, você precisa descartar a agulha utilizada.",
+          cards: [
+            {
+              type: 'risk',
+              question: "Onde deve ser feito o descarte correto?",
+              options: [
+                { id: 'trash', text: "Lixo Comum", isCorrect: false, icon: "🗑️" },
+                { id: 'bag', text: "Saco Branco Leitoso", isCorrect: false, icon: "⚪" },
+                { id: 'box', text: "Coletor Perfurocortante", isCorrect: true, icon: "📦" }
+              ],
+              justification: "Agulhas são resíduos do Grupo E (Perfurocortantes) e devem ser descartadas em recipientes rígidos, estanques e identificados (caixa amarela)."
+            }
+          ]
+        },
+        {
+          id: 4,
+          title: "Caso 04: Cultura Celular",
+          context: "Você está realizando a manutenção de uma linhagem de células HeLa na Cabine de Segurança Biológica.",
+          cards: [
+            {
+              type: 'environment',
+              question: "Qual prática compromete a esterilidade e a segurança dentro da Cabine?",
+              options: [
+                { id: 'bunsen', text: "Uso de Bico de Bunsen", isCorrect: true },
+                { id: 'alc', text: "Limpar superfícies com Álcool 70%", isCorrect: false },
+                { id: 'org', text: "Organizar materiais limpo/sujo", isCorrect: false }
+              ],
+              justification: "O uso de Bico de Bunsen em Cabines de Segurança Biológica gera turbulência no fluxo de ar, comprometendo a proteção do produto e do operador."
+            },
+            {
+              type: 'risk',
+              question: "Para evitar contaminação cruzada entre linhagens diferentes, você deve:",
+              options: [
+                { id: 'multi', text: "Manipular várias linhagens juntas", isCorrect: false },
+                { id: 'share', text: "Compartilhar garrafas de meio", isCorrect: false },
+                { id: 'single', text: "Manipular uma linhagem por vez", isCorrect: true }
+              ],
+              justification: "Deve-se manipular apenas uma linhagem celular por vez na cabine, descontaminando a superfície entre os procedimentos para evitar contaminação cruzada."
+            },
+            {
+              type: 'risk',
+              question: "Como deve ser descartado o meio de cultura líquido aspirado?",
+              options: [
+                { id: 'autoclave', text: "Tratar com hipoclorito antes do descarte", isCorrect: true, icon: "🧪" },
+                { id: 'sink', text: "Diretamente na pia", isCorrect: false, icon: "🚰" },
+                { id: 'trash', text: "Lixo comum", isCorrect: false }
+              ],
+              justification: "Resíduos líquidos biológicos devem ser descontaminados quimicamente (ex: Hipoclorito de Sódio a 1%) ou autoclavados antes de serem descartados na rede de esgoto."
+            }
+          ]
+        },
+        {
+          id: 5,
+          title: "CHEFE FINAL: INCIDENTE NB-3",
+          context: "ALERTA VERMELHO! Ocorreu uma quebra de centrífuga contendo um agente viral desconhecido. O alarme disparou e a ventilação falhou. Siga o protocolo.",
+          isBoss: true,
+          cards: [
+            {
+              type: 'risk',
+              question: "A centrífuga acabou de quebrar com um estrondo. O que você faz IMEDIATAMENTE?",
+              options: [
+                { id: 'open', text: "Abro a centrífuga para ver o dano", isCorrect: false },
+                { id: 'stop', text: "Desligo e espero 30 minutos (aerossóis)", isCorrect: true },
+                { id: 'run', text: "Saio correndo da sala sem avisar", isCorrect: false }
+              ],
+              justification: "Em caso de quebra com risco de aerossóis, não abra o equipamento. Desligue e aguarde a sedimentação dos aerossóis (geralmente 30min)."
+            },
+            {
+              type: 'ppe',
+              question: "Após os 30 minutos, você vai entrar para limpar. Qual a proteção respiratória?",
+              options: [
+                { id: 'mask', text: "Máscara Cirúrgica Dupla", isCorrect: false },
+                { id: 'papr', text: "Respirador Motorizado ou N95 Fit-tested", isCorrect: true },
+                { id: 'none', text: "Apenas Face Shield", isCorrect: false }
+              ],
+              justification: "Para um agente desconhecido e alta carga de aerossóis (acidente), a proteção deve ser máxima (N95 validada ou PAPR)."
+            },
+            {
+              type: 'risk',
+              question: "Você encontrou vidro quebrado contaminado. Como remover?",
+              options: [
+                { id: 'hands', text: "Com luvas grossas e as mãos", isCorrect: false },
+                { id: 'forceps', text: "Com pinças ou pá e escova", isCorrect: true },
+                { id: 'paper', text: "Com papel toalha", isCorrect: false }
+              ],
+              justification: "Nunca manipule vidro quebrado diretamente com as mãos, mesmo com luvas. Use pinças ou pá."
+            },
+            {
+              type: 'environment',
+              question: "Qual desinfetante é mais indicado para conter o derramamento viral inicial?",
+              options: [
+                { id: 'water', text: "Água e Sabão", isCorrect: false },
+                { id: 'alcohol', text: "Álcool 70% (volátil)", isCorrect: false },
+                { id: 'hypo', text: "Hipoclorito de Sódio 1% (Água Sanitária)", isCorrect: true }
+              ],
+              justification: "O Hipoclorito é um desinfetante de amplo espectro eficaz para inativação de derramamentos biológicos, seguido de tempo de contato."
+            },
+            {
+              type: 'environment',
+              question: "Onde descartar os papéis e luvas contaminados pelo derramamento?",
+              options: [
+                { id: 'trash', text: "Lixo Comum", isCorrect: false },
+                { id: 'auto-bag', text: "Saco de Autoclavagem (Vermelho/Branco)", isCorrect: true },
+                { id: 'recycl', text: "Reciclável", isCorrect: false }
+              ],
+              justification: "Todo material sólido contaminado deve ir para saco de resíduo biológico infectante para posterior tratamento (autoclave/incineração)."
+            },
+            {
+              type: 'risk',
+              question: "Você sentiu um respingo na pele exposta durante o processo. O que fazer?",
+              options: [
+                { id: 'ignore', text: "Ignorar para não atrasar", isCorrect: false },
+                { id: 'wait', text: "Esperar chegar em casa", isCorrect: false },
+                { id: 'wash', text: "Lavar imediatamente com água e sabão por 15 min", isCorrect: true }
+              ],
+              justification: "Exposição percutânea ou em pele deve ser lavada exaustivamente com água e sabão imediatamente."
+            }
+          ]
+        }
+      ];
+
+      // === CONFIGURATION ===
+      const DIFFICULTIES = {
+        normal: { timeLimit: 15, damageMultiplier: 1.0 },
+        hard: { timeLimit: 10, damageMultiplier: 1.5 }
+      };
+
+      let currentDifficulty = DIFFICULTIES.normal;
+
+      // === GAME STATE ===
+      let currentState = {
+        scenarioIndex: 0,
+        cardIndex: 0,
+        score: 0,
+        health: 100,
+        isGameOver: false,
+        isPaused: false
+      };
+
+      let timerInterval = null;
+      let currentTimerValue = 0;
+
+      // === DOM ELEMENTS ===
+      const introScreen = document.getElementById('intro-screen');
+      const gameScreen = document.getElementById('game-screen');
+      const endScreen = document.getElementById('end-screen');
+      const gameArea = document.getElementById('game-area');
+      const scoreEl = document.getElementById('score-val');
+      const hpBarEl = document.getElementById('hp-bar');
+      const feedbackModal = document.getElementById('feedback-modal');
+      const feedbackHeader = document.getElementById('feedback-header');
+      const feedbackReason = document.getElementById('feedback-reason');
+      const nextBtn = document.getElementById('next-btn');
+      const startBtn = document.getElementById('start-btn');
+      const restartBtn = document.getElementById('restart-btn');
+      const diffButtons = document.querySelectorAll('.diff-btn');
+      const pauseBtn = document.getElementById('pause-btn');
+      const pauseModal = document.getElementById('pause-modal');
+      const resumeBtn = document.getElementById('resume-btn');
+
+      // === EVENT LISTENERS ===
+      if(startBtn) startBtn.addEventListener('click', startGame);
+      if(nextBtn) nextBtn.addEventListener('click', advanceGame);
+      if(restartBtn) restartBtn.addEventListener('click', returnToIntro);
+      if(pauseBtn) pauseBtn.addEventListener('click', togglePause);
+      if(resumeBtn) resumeBtn.addEventListener('click', togglePause);
+
+      // Difficulty Selection Logic
+      diffButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          diffButtons.forEach(b => b.classList.remove('selected'));
+          const target = e.target;
+          target.classList.add('selected');
+          const diffKey = target.getAttribute('data-diff') || 'normal';
+          currentDifficulty = DIFFICULTIES[diffKey];
+        });
+      });
+
+      // === FUNCTIONS ===
+
+      function returnToIntro() {
+        if (timerInterval) clearInterval(timerInterval);
+        endScreen.classList.add('hidden');
+        gameScreen.classList.add('hidden');
+        introScreen.classList.remove('hidden');
+      }
+
+      function togglePause() {
+        currentState.isPaused = !currentState.isPaused;
+
+        if (currentState.isPaused) {
+          pauseModal.classList.add('active');
+          if (timerInterval) clearInterval(timerInterval);
+        } else {
+          pauseModal.classList.remove('active');
+          const timerEl = document.querySelector('.card-timer');
+          if (timerEl) {
+            const justification = SCENARIOS[currentState.scenarioIndex].cards[currentState.cardIndex].justification;
+            const isBoss = SCENARIOS[currentState.scenarioIndex].isBoss;
+            resumeTimer(timerEl, justification, isBoss);
+          }
+        }
+      }
+
+      function startGame() {
+        currentState = {
+          scenarioIndex: 0,
+          cardIndex: 0,
+          score: 0,
+          health: 100,
+          isGameOver: false,
+          isPaused: false
+        };
         
-        // Build Items
-        const BUILD_ITEMS = [
-            // Structural
-            { id: 'wall', name: 'Parede', category: 'ESTRUTURA', icon: '🧱', color: 'bg-gray-700' },
-            { id: 'door', name: 'Porta', category: 'ESTRUTURA', icon: '🚪', color: 'bg-yellow-100' },
-            { id: 'window', name: 'Janela', category: 'ESTRUTURA', icon: '🪟', color: 'bg-blue-100' },
-            { id: 'bench', name: 'Bancada', category: 'ESTRUTURA', icon: '⬜', color: 'bg-gray-300' },
-            
-            // Equipment
-            { id: 'sink', name: 'Pia', category: 'EQUIPAMENTOS', icon: '🚰', color: 'bg-cyan-100' },
-            { id: 'fume_hood', name: 'Capela', category: 'EQUIPAMENTOS', icon: '💨', color: 'bg-blue-200' },
-            { id: 'chair', name: 'Cadeira', category: 'EQUIPAMENTOS', icon: '🪑', color: 'bg-slate-200' },
-            { id: 'cabinet', name: 'Armário', category: 'EQUIPAMENTOS', icon: '🗄️', color: 'bg-amber-100' },
-            { id: 'freezer', name: 'Geladeira', category: 'EQUIPAMENTOS', icon: '❄️', color: 'bg-gray-200' },
-            { id: 'trash', name: 'Lixo', category: 'EQUIPAMENTOS', icon: '🗑️', color: 'bg-red-100' },
-            
-            // Insumos (New Category)
-            { id: 'item_biological', name: 'R. Biológico', category: 'INSUMOS', icon: '🧫', color: 'bg-emerald-100' },
-            { id: 'item_chemical', name: 'R. Químico', category: 'INSUMOS', icon: '🧪', color: 'bg-rose-100' },
+        if (timerInterval) clearInterval(timerInterval);
 
-            // Safety
-            { id: 'shower', name: 'Chuveiro', category: 'SEGURANÇA', icon: '🚿', color: 'bg-green-100' },
-            { id: 'extinguisher', name: 'Extintor', category: 'SEGURANÇA', icon: '🧯', color: 'bg-red-500 text-white' },
-        ];
+        updateHUD();
+        
+        introScreen.classList.add('hidden');
+        endScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        
+        renderCard();
+      }
 
-        // Items that can serve as a base for merging (furniture)
-        const MERGEABLE_BASES = ['bench', 'cabinet', 'fume_hood', 'sink', 'freezer'];
-        // Items that can overlay (insumos)
-        const OVERLAY_ITEMS = ['item_biological', 'item_chemical'];
+      function updateHUD() {
+        if(scoreEl) scoreEl.innerText = currentState.score.toString();
+        if(hpBarEl) {
+          hpBarEl.style.width = `${Math.max(0, currentState.health)}%`;
+          if(currentState.health > 60) {
+            hpBarEl.style.backgroundColor = '#4CAF50';
+          } else if (currentState.health > 30) {
+            hpBarEl.style.backgroundColor = '#FF9800';
+          } else {
+            hpBarEl.style.backgroundColor = '#F44336';
+          }
+        }
+      }
 
-        // Risk Definitions (Cores padronizadas CIPA/NR-5)
-        const RISK_TYPES = [
-            { id: 'physical', name: 'Físico', color: '#10B981', desc: 'Ruído, Calor, Vibração' }, // Green
-            { id: 'chemical', name: 'Químico', color: '#EF4444', desc: 'Poeiras, Vapores, Líquidos' }, // Red
-            { id: 'biological', name: 'Biológico', color: '#78350F', desc: 'Vírus, Bactérias' }, // Brown
-            { id: 'ergonomic', name: 'Ergonômico', color: '#F59E0B', desc: 'Postura, Esforço' }, // Yellow
-            { id: 'accident', name: 'Acidentes', color: '#3B82F6', desc: 'Arranjo físico, Quedas' } // Blue
-        ];
+      function renderCard() {
+        if (!gameArea) return;
+        gameArea.innerHTML = '';
 
-        // --- STATE ---
-        let appState = {
-            mode: 'build', // 'build' or 'risk'
-            grid: new Array(GRID_SIZE * GRID_SIZE).fill(null), // Building layer
-            risks: new Array(GRID_SIZE * GRID_SIZE).fill(null), // Risk layer { type, size }
-            
-            selectedBuildTool: null, // null = eraser
-            selectedRiskType: RISK_TYPES[0],
-            selectedRiskSize: 'large', // 'small', 'medium', 'large'
-            
-            pan: { x: 0, y: 0 },
-            zoom: 0.5,
-            
-            // Interaction
-            isDragging: false,
-            startX: 0, startY: 0,
-            lastTouch: null, lastDist: null
-        };
+        const scenario = SCENARIOS[currentState.scenarioIndex];
+        const cardData = scenario.cards[currentState.cardIndex];
 
-        // --- DOM ELEMENTS ---
-        const els = {
-            grid: document.getElementById('lab-grid'),
-            riskLayer: document.getElementById('risk-layer'),
-            transform: document.getElementById('transform-container'),
-            main: document.getElementById('main-container'),
-            hint: document.getElementById('hint'),
-            
-            // Palettes
-            paletteContainer: document.getElementById('palette-container'),
-            buildPalette: document.getElementById('palette-build'),
-            riskPalette: document.getElementById('palette-risk'),
-            buildGrid: document.getElementById('build-items-grid'),
-            riskGrid: document.getElementById('risk-types-grid'),
-            
-            // Mode Buttons
-            btnModeBuild: document.getElementById('mode-build'),
-            btnModeRisk: document.getElementById('mode-risk')
-        };
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card slide-in-right';
+        
+        if (scenario.isBoss) {
+          cardEl.classList.add('boss-card');
+        }
+        
+        const headerRow = document.createElement('div');
+        headerRow.className = 'card-header-row';
 
-        // --- INITIALIZATION ---
-        function init() {
-            renderGridCells();
-            renderBuildPalette();
-            renderRiskPalette();
-            updateTransform();
-            
-            // Initial selection
-            selectBuildTool('wall'); 
-            updateModeUI();
-
-            // Event Listeners
-            setupTouchEvents();
-            setupMouseEvents();
-            setupButtons();
+        const contextEl = document.createElement('span');
+        contextEl.className = 'card-context';
+        contextEl.innerText = scenario.title;
+        
+        const timerEl = document.createElement('span');
+        timerEl.className = 'card-timer';
+        currentTimerValue = currentDifficulty.timeLimit; 
+        timerEl.innerText = `⏳ ${currentTimerValue}s`;
+        
+        headerRow.appendChild(contextEl);
+        headerRow.appendChild(timerEl);
+        cardEl.appendChild(headerRow);
+        
+        if (currentState.cardIndex === 0) {
+           const scenarioIntro = document.createElement('p');
+           scenarioIntro.style.fontSize = '0.9rem';
+           scenarioIntro.style.color = scenario.isBoss ? '#D32F2F' : '#666';
+           scenarioIntro.style.marginBottom = '10px';
+           scenarioIntro.style.fontStyle = 'italic';
+           scenarioIntro.style.fontWeight = scenario.isBoss ? 'bold' : 'normal';
+           scenarioIntro.innerText = scenario.context;
+           cardEl.appendChild(scenarioIntro);
         }
 
-        // --- RENDER LOGIC ---
-        function renderGridCells() {
-            els.grid.innerHTML = '';
-            for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-                const div = document.createElement('div');
-                div.id = `cell-${i}`;
-                div.className = "border border-gray-200 grid-cell cursor-pointer select-none bg-white hover:bg-blue-50 transition-colors overflow-hidden";
-                div.onpointerup = (e) => {
-                    if (!appState.isDragging) handleCellClick(i);
-                };
-                els.grid.appendChild(div);
-            }
+        const questionEl = document.createElement('div');
+        questionEl.className = 'card-question';
+        questionEl.innerText = cardData.question;
+
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'card-content';
+
+        cardData.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          
+          const iconSpan = document.createElement('span');
+          iconSpan.innerText = opt.icon || '🔹';
+          
+          const textSpan = document.createElement('span');
+          textSpan.innerText = opt.text;
+
+          btn.appendChild(iconSpan);
+          btn.appendChild(textSpan);
+
+          btn.onclick = () => handleAnswer(opt, cardData, cardEl, scenario.isBoss);
+          optionsDiv.appendChild(btn);
+        });
+
+        cardEl.appendChild(questionEl);
+        cardEl.appendChild(optionsDiv);
+        
+        gameArea.appendChild(cardEl);
+
+        startTimer(timerEl, cardData.justification, scenario.isBoss);
+      }
+
+      function startTimer(displayElement, justification, isBoss) {
+        if (timerInterval) clearInterval(timerInterval);
+        
+        timerInterval = setInterval(() => {
+          if (currentState.isPaused) return;
+
+          currentTimerValue--;
+          displayElement.innerText = `⏳ ${currentTimerValue}s`;
+          
+          if (currentTimerValue <= 5) {
+            displayElement.classList.add('urgent');
+          }
+
+          if (currentTimerValue <= 0) {
+            clearInterval(timerInterval);
+            handleTimeout(justification, isBoss);
+          }
+        }, 1000);
+      }
+
+      function resumeTimer(displayElement, justification, isBoss) {
+        startTimer(displayElement, justification, isBoss);
+      }
+
+      function handleTimeout(justification, isBoss) {
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+
+        const damage = 10 * currentDifficulty.damageMultiplier;
+        applyDamage(damage);
+
+        if(feedbackModal && feedbackHeader && feedbackReason) {
+          feedbackModal.classList.add('active');
+          feedbackHeader.innerHTML = '<span style="font-size:2rem">⌛</span> <span class="wrong">Tempo Esgotado!</span>';
+          feedbackReason.innerText = "A demora expôs você ao risco. -" + Math.ceil(damage) + " HP. " + justification;
+        }
+      }
+
+      function handleAnswer(option, cardData, cardElement, isBoss) {
+        if (timerInterval) clearInterval(timerInterval);
+
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+
+        const isCorrect = option.isCorrect;
+        
+        if (isCorrect) {
+          currentState.score += 150;
+        } else {
+          let baseDamage = 20;
+          if (isBoss) baseDamage = 30;
+          
+          const damage = baseDamage * currentDifficulty.damageMultiplier;
+          applyDamage(damage);
         }
 
-        function renderRiskLayer() {
-            els.riskLayer.innerHTML = '';
-            appState.risks.forEach((risk, index) => {
-                if (!risk) return;
-                
-                const y = Math.floor(index / GRID_SIZE);
-                const x = index % GRID_SIZE;
-                
-                const circle = document.createElement('div');
-                circle.className = `risk-circle risk-${risk.size}`;
-                circle.style.backgroundColor = risk.color;
-                circle.style.left = `${(x * CELL_SIZE) + (CELL_SIZE/2)}px`;
-                circle.style.top = `${(y * CELL_SIZE) + (CELL_SIZE/2)}px`;
-                
-                els.riskLayer.appendChild(circle);
-            });
+        updateHUD();
+        showFeedback(isCorrect, cardData.justification);
+      }
+
+      function applyDamage(amount) {
+        currentState.health = Math.max(0, currentState.health - amount);
+        
+        const gameBody = document.body;
+        gameBody.classList.add('shake');
+        setTimeout(() => gameBody.classList.remove('shake'), 500);
+        
+        updateHUD();
+      }
+
+      function showFeedback(isCorrect, justification) {
+        if(!feedbackModal || !feedbackHeader || !feedbackReason) return;
+
+        feedbackModal.classList.add('active');
+        
+        if(isCorrect) {
+          feedbackHeader.innerHTML = '<span style="font-size:2rem">✅</span> <span class="correct">Sucesso!</span>';
+        } else {
+          feedbackHeader.innerHTML = '<span style="font-size:2rem">💥</span> <span class="wrong">Dano Recebido!</span>';
         }
 
-        function updateGridCell(index) {
-            const cell = appState.grid[index];
-            const div = document.getElementById(`cell-${index}`);
-            
-            if (cell) {
-                // Using .cell-content inner span ensures better centering in export
-                div.className = `border border-gray-200 grid-cell cursor-pointer select-none transition-colors overflow-hidden ${cell.color}`;
-                div.innerHTML = `<span class="cell-content">${cell.icon}</span>`;
+        feedbackReason.innerText = justification;
+      }
+
+      function advanceGame() {
+        feedbackModal.classList.remove('active');
+        if (timerInterval) clearInterval(timerInterval);
+
+        if (currentState.health <= 0) {
+          endGame(false);
+          return;
+        }
+
+        const oldCard = document.querySelector('.card');
+        if(oldCard) {
+          oldCard.classList.add('slide-out-left');
+        }
+
+        const currentScenario = SCENARIOS[currentState.scenarioIndex];
+
+        setTimeout(() => {
+          if (currentState.cardIndex < currentScenario.cards.length - 1) {
+            currentState.cardIndex++;
+            renderCard();
+          } else {
+            currentState.scenarioIndex++;
+            currentState.cardIndex = 0;
+
+            if (currentState.scenarioIndex < SCENARIOS.length) {
+              renderCard();
             } else {
-                div.className = "border border-gray-200 grid-cell cursor-pointer select-none bg-white hover:bg-blue-50 transition-colors overflow-hidden";
-                div.innerHTML = '';
+              endGame(true);
             }
-            // Check for hint
-            const isEmpty = appState.grid.every(c => c === null);
-            els.hint.style.display = isEmpty ? 'block' : 'none';
+          }
+        }, 300);
+      }
+
+      function endGame(victory) {
+        if (timerInterval) clearInterval(timerInterval);
+        
+        gameScreen.classList.add('hidden');
+        endScreen.classList.remove('hidden');
+
+        const title = document.getElementById('end-title');
+        const msg = document.getElementById('end-msg');
+        const icon = document.getElementById('end-icon');
+        const finalScore = document.getElementById('final-score');
+
+        if(finalScore) finalScore.innerText = currentState.score.toString();
+
+        if (victory) {
+          if(title) title.innerText = "Missão Cumprida!";
+          if(msg) msg.innerText = "Você conteve o surto e protegeu o laboratório. A equipe de resgate chegou.";
+          if(icon) icon.innerText = "🎖️";
+          if(title) title.style.color = "var(--success)";
+        } else {
+          if(title) title.innerText = "Contaminação Fatal";
+          if(msg) msg.innerText = "Seu traje foi comprometido. A contenção falhou.";
+          if(icon) icon.innerText = "💀";
+          if(title) title.style.color = "var(--danger)";
         }
-
-        function renderBuildPalette() {
-            // Eraser
-            const eraserDiv = document.createElement('div');
-            eraserDiv.className = 'mb-4';
-            eraserDiv.innerHTML = `
-                <button onclick="selectBuildTool(null)" id="tool-eraser" class="w-full flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all">
-                    <span class="text-2xl">🧹</span>
-                    <div class="text-left"><p class="font-bold text-gray-800">Borracha</p><p class="text-xs text-gray-500">Limpar célula</p></div>
-                </button>
-            `;
-            els.buildGrid.parentNode.insertBefore(eraserDiv, els.buildGrid);
-
-            // Categories
-            const categories = [...new Set(BUILD_ITEMS.map(i => i.category))];
-            categories.forEach(cat => {
-                const header = document.createElement('h3');
-                header.className = "text-gray-400 font-bold mb-2 text-xs uppercase tracking-wider mt-2";
-                header.innerText = cat;
-                els.buildGrid.appendChild(header);
-
-                const grid = document.createElement('div');
-                grid.className = "grid grid-cols-2 gap-3 mb-2";
-                
-                BUILD_ITEMS.filter(i => i.category === cat).forEach(item => {
-                    const btn = document.createElement('button');
-                    btn.id = `tool-${item.id}`;
-                    btn.className = "build-btn flex flex-col items-center p-3 rounded-lg border-2 border-gray-100 bg-white hover:border-gray-300 shadow-sm transition-all active:scale-95";
-                    btn.innerHTML = `<span class="text-3xl mb-1">${item.icon}</span><span class="text-sm font-semibold text-gray-700">${item.name}</span>`;
-                    btn.onclick = () => selectBuildTool(item.id);
-                    grid.appendChild(btn);
-                });
-                els.buildGrid.appendChild(grid);
-            });
-        }
-
-        function renderRiskPalette() {
-             // Eraser for Risks
-            const eraserDiv = document.createElement('div');
-            eraserDiv.className = 'mb-4';
-            eraserDiv.innerHTML = `
-                <button onclick="selectRiskType(null)" id="risk-eraser" class="w-full flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 transition-all">
-                    <span class="text-2xl">🧹</span>
-                    <div class="text-left"><p class="font-bold text-gray-800">Borracha de Risco</p><p class="text-xs text-gray-500">Remover legenda</p></div>
-                </button>
-            `;
-            els.riskGrid.parentNode.insertBefore(eraserDiv, els.riskGrid.parentNode.firstChild.nextSibling);
-
-            RISK_TYPES.forEach(type => {
-                const btn = document.createElement('button');
-                btn.id = `risk-btn-${type.id}`;
-                // Using inline style for dynamic border color on hover/active could be complex, keeping simple classes
-                btn.className = "risk-type-btn flex flex-col p-3 rounded-lg border-2 border-gray-100 bg-white shadow-sm transition-all active:scale-95 text-left";
-                btn.onclick = () => selectRiskType(type);
-                
-                btn.innerHTML = `
-                    <div class="flex items-center gap-2 mb-1">
-                        <div class="w-4 h-4 rounded-full" style="background-color: ${type.color}"></div>
-                        <span class="font-bold text-sm text-gray-800">${type.name}</span>
-                    </div>
-                    <span class="text-[10px] text-gray-500 leading-tight">${type.desc}</span>
-                `;
-                els.riskGrid.appendChild(btn);
-            });
-            
-            // Select default
-            selectRiskType(RISK_TYPES[0]);
-        }
-
-        // --- STATE MANAGEMENT ---
-
-        // MODE SWITCHING
-        function setMode(mode) {
-            appState.mode = mode;
-            updateModeUI();
-        }
-
-        function updateModeUI() {
-            if (appState.mode === 'build') {
-                els.btnModeBuild.className = "flex-1 py-2 rounded-md text-sm font-bold transition-all bg-white text-[#003366] shadow-md ring-1 ring-gray-200";
-                els.btnModeRisk.className = "flex-1 py-2 rounded-md text-sm font-bold transition-all text-gray-500 hover:text-gray-700";
-                els.buildPalette.classList.remove('hidden');
-                els.riskPalette.classList.add('hidden');
-                // Visual cue on grid
-                els.grid.classList.remove('opacity-50');
-                els.riskLayer.classList.add('opacity-50'); // Dim risks while building
-            } else {
-                els.btnModeRisk.className = "flex-1 py-2 rounded-md text-sm font-bold transition-all bg-white text-[#FF8C00] shadow-md ring-1 ring-gray-200";
-                els.btnModeBuild.className = "flex-1 py-2 rounded-md text-sm font-bold transition-all text-gray-500 hover:text-gray-700";
-                els.buildPalette.classList.add('hidden');
-                els.riskPalette.classList.remove('hidden');
-                // Visual cue
-                els.grid.classList.add('opacity-50'); // Dim build items
-                els.riskLayer.classList.remove('opacity-50');
-            }
-        }
-
-        // SELECTION LOGIC
-        window.selectBuildTool = (id) => {
-            appState.selectedBuildTool = id;
-            document.querySelectorAll('.build-btn').forEach(b => b.classList.remove('border-[#003366]', 'bg-blue-50', 'ring-2', 'ring-blue-200'));
-            document.getElementById('tool-eraser').classList.remove('border-[#FF8C00]', 'bg-orange-50');
-            
-            if (id === null) {
-                document.getElementById('tool-eraser').classList.add('border-[#FF8C00]', 'bg-orange-50');
-            } else {
-                const btn = document.getElementById(`tool-${id}`);
-                if (btn) btn.classList.add('border-[#003366]', 'bg-blue-50', 'ring-2', 'ring-blue-200');
-            }
-        };
-
-        window.setRiskSize = (size) => {
-            appState.selectedRiskSize = size;
-            document.querySelectorAll('.risk-size-btn').forEach(b => {
-                b.classList.remove('border-[#003366]', 'border-2');
-                b.classList.add('border-gray-300');
-            });
-            const activeBtn = document.querySelector(`.risk-size-btn[data-size="${size}"]`);
-            if (activeBtn) {
-                activeBtn.classList.remove('border-gray-300');
-                activeBtn.classList.add('border-[#003366]', 'border-2');
-            }
-        };
-
-        window.selectRiskType = (typeObjOrNull) => {
-            appState.selectedRiskType = typeObjOrNull;
-            document.querySelectorAll('.risk-type-btn').forEach(b => b.classList.remove('ring-2', 'ring-offset-1'));
-            document.getElementById('risk-eraser').classList.remove('border-[#FF8C00]', 'bg-orange-50');
-
-            if (typeObjOrNull === null) {
-                 document.getElementById('risk-eraser').classList.add('border-[#FF8C00]', 'bg-orange-50');
-            } else {
-                const btn = document.getElementById(`risk-btn-${typeObjOrNull.id}`);
-                if (btn) {
-                    btn.classList.add('ring-2', 'ring-offset-1');
-                    btn.style.borderColor = typeObjOrNull.color;
-                }
-            }
-        };
-
-        // INTERACTION HANDLERS
-        function handleCellClick(index) {
-            if (appState.mode === 'build') {
-                if (appState.selectedBuildTool === null) {
-                    appState.grid[index] = null;
-                } else {
-                    const newItem = BUILD_ITEMS.find(i => i.id === appState.selectedBuildTool);
-                    const currentItem = appState.grid[index];
-
-                    // Merge Logic: If we are placing an overlay item (Chemical/Bio) onto a valid Base (Bench/Cabinet)
-                    if (currentItem && MERGEABLE_BASES.includes(currentItem.id) && OVERLAY_ITEMS.includes(newItem.id)) {
-                        appState.grid[index] = {
-                            ...newItem, // Use the Insumo Icon/Name
-                            color: currentItem.color, // Keep the Furniture Background Color
-                            baseId: currentItem.id,
-                            merged: true
-                        };
-                    } else {
-                        // Standard placement (replace)
-                        appState.grid[index] = newItem;
-                    }
-                }
-                updateGridCell(index);
-            } else {
-                // Risk Mode
-                if (appState.selectedRiskType === null) {
-                    appState.risks[index] = null;
-                } else {
-                    appState.risks[index] = {
-                        typeId: appState.selectedRiskType.id,
-                        color: appState.selectedRiskType.color,
-                        size: appState.selectedRiskSize
-                    };
-                }
-                renderRiskLayer();
-            }
-        }
-
-        function handleDownload() {
-            // We want to capture exactly what the user sees (the viewport), 
-            // maintaining the current zoom and pan.
-            const target = document.getElementById('main-container');
-            const btn = document.getElementById('btn-download');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '⏳ Gerando...';
-
-            html2canvas(target, {
-                // Adjust scale for quality, but remember capturing viewport
-                // already respects the CSS transforms visually.
-                scale: 2, 
-                backgroundColor: '#F3F4F6', // Capture background color
-                logging: false,
-                useCORS: true,
-                ignoreElements: (element) => element.id === 'hint' // Hide the hint
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'meu-mapa-de-risco.png';
-                link.href = canvas.toDataURL();
-                link.click();
-                
-                btn.innerHTML = originalText;
-            }).catch(err => {
-                console.error(err);
-                alert("Erro ao baixar imagem. Tente novamente.");
-                btn.innerHTML = originalText;
-            });
-        }
-
-        function handleReset() {
-            if (confirm('Tem certeza que deseja apagar TODO o mapa e recomeçar do zero?')) {
-                // 1. Reset Arrays
-                appState.grid = new Array(GRID_SIZE * GRID_SIZE).fill(null);
-                appState.risks = new Array(GRID_SIZE * GRID_SIZE).fill(null);
-
-                // 2. Full Re-render to clear DOM ghosts
-                renderGridCells();
-                renderRiskLayer();
-
-                // 3. Reset View Properties
-                appState.pan = { x: 0, y: 0 };
-                appState.zoom = 0.5;
-                updateTransform();
-
-                // 4. Update UI state (hide hints if necessary, though empty grid shows hint)
-                els.hint.style.display = 'block';
-                
-                // 5. Visual Feedback
-                els.transform.classList.add('shake-animation');
-                setTimeout(() => els.transform.classList.remove('shake-animation'), 500);
-            }
-        }
-
-        // --- NAVIGATION & UTILS ---
-        function updateTransform() {
-            els.transform.style.transform = `translate(${appState.pan.x}px, ${appState.pan.y}px) scale(${appState.zoom})`;
-        }
-
-        function setupButtons() {
-            els.btnModeBuild.onclick = () => setMode('build');
-            els.btnModeRisk.onclick = () => setMode('risk');
-            
-            document.getElementById('btn-zoom-in').onclick = () => { appState.zoom = Math.min(appState.zoom + 0.1, 2.5); updateTransform(); };
-            document.getElementById('btn-zoom-out').onclick = () => { appState.zoom = Math.max(appState.zoom - 0.1, 0.2); updateTransform(); };
-            
-            // Explicitly bind Reset button
-            const btnReset = document.getElementById('btn-reset');
-            if(btnReset) {
-                btnReset.onclick = handleReset;
-            }
-
-            document.getElementById('btn-download').onclick = handleDownload;
-        }
-
-        function setupTouchEvents() {
-             els.main.addEventListener('touchstart', (e) => {
-                appState.isDragging = false;
-                if (e.touches.length === 1) {
-                    appState.lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                } else if (e.touches.length === 2) {
-                    appState.lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                }
-            }, { passive: false });
-
-            els.main.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (e.touches.length === 1 && appState.lastTouch) {
-                    const dx = e.touches[0].clientX - appState.lastTouch.x;
-                    const dy = e.touches[0].clientY - appState.lastTouch.y;
-                    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) appState.isDragging = true;
-                    appState.pan.x += dx;
-                    appState.pan.y += dy;
-                    appState.lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                    updateTransform();
-                } else if (e.touches.length === 2 && appState.lastDist) {
-                    const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    const scaleFactor = newDist / appState.lastDist;
-                    appState.zoom = Math.min(Math.max(appState.zoom * scaleFactor, 0.2), 3.0);
-                    appState.lastDist = newDist;
-                    appState.isDragging = true;
-                    updateTransform();
-                }
-            }, { passive: false });
-
-            els.main.addEventListener('touchend', () => {
-                appState.lastTouch = null;
-                appState.lastDist = null;
-            });
-        }
-
-        function setupMouseEvents() {
-            els.main.addEventListener('mousedown', (e) => {
-                appState.isDragging = false;
-                appState.startX = e.clientX;
-                appState.startY = e.clientY;
-                els.main.style.cursor = 'grabbing';
-                
-                const onMouseMove = (ev) => {
-                    const dx = ev.clientX - appState.startX;
-                    const dy = ev.clientY - appState.startY;
-                    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) appState.isDragging = true;
-                    appState.pan.x += dx;
-                    appState.pan.y += dy;
-                    appState.startX = ev.clientX;
-                    appState.startY = ev.clientY;
-                    updateTransform();
-                };
-                
-                const onMouseUp = () => {
-                    els.main.removeEventListener('mousemove', onMouseMove);
-                    els.main.removeEventListener('mouseup', onMouseUp);
-                    els.main.style.cursor = 'grab';
-                };
-                
-                els.main.addEventListener('mousemove', onMouseMove);
-                els.main.addEventListener('mouseup', onMouseUp);
-            });
-        }
-
-        // Start
-        init();
+      }
     </script>
-</body>
+  </body>
 </html>
