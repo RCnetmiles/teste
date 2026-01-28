@@ -1,1 +1,1087 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Resolvendo Desafios</title>
+    <style>
+      :root {
+        --primary: #003366;
+        --secondary: #FF8C00;
+        --bg: #F4F7F6;
+        --card-bg: #FFFFFF;
+        --text: #333333;
+        --danger: #D32F2F;
+        --success: #388E3C;
+        --hp-high: #4CAF50;
+        --hp-med: #FF9800;
+        --hp-low: #F44336;
+        --gray: #B0BEC5;
+      }
 
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Screens */
+      .screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        transition: opacity 0.3s ease;
+        z-index: 10;
+        background: var(--bg);
+      }
+
+      .hidden {
+        display: none !important;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* Screen Shake Animation for Damage */
+      .shake {
+        animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+      }
+
+      @keyframes shake {
+        10%, 90% { transform: translate3d(-1px, 0, 0); }
+        20%, 80% { transform: translate3d(2px, 0, 0); }
+        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+        40%, 60% { transform: translate3d(4px, 0, 0); }
+      }
+
+      /* Intro Screen */
+      #intro-screen {
+        text-align: center;
+        background: linear-gradient(135deg, var(--primary) 0%, #001a33 100%);
+        color: white;
+      }
+
+      .logo-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        font-size: 2.2rem;
+        margin-bottom: 15px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+
+      p.subtitle {
+        font-size: 1rem;
+        opacity: 0.95;
+        margin-bottom: 30px;
+        max-width: 340px;
+        line-height: 1.6;
+        font-weight: 300;
+      }
+
+      /* Difficulty Selector */
+      .difficulty-container {
+        margin-bottom: 30px;
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .difficulty-label {
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.8;
+      }
+
+      .difficulty-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      .diff-btn {
+        flex: 1;
+        padding: 12px 5px;
+        background: rgba(255,255,255,0.1);
+        border: 2px solid rgba(255,255,255,0.3);
+        color: white;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+      }
+
+      .diff-btn:hover {
+        background: rgba(255,255,255,0.2);
+      }
+
+      .diff-btn.selected {
+        background: var(--secondary);
+        border-color: var(--secondary);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transform: scale(1.05);
+      }
+
+      /* Game HUD */
+      #game-hud {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 15px 20px;
+        background: white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .hud-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+      }
+
+      .score-display {
+        font-weight: 700;
+        color: var(--primary);
+        font-size: 1.2rem;
+      }
+      
+      .hud-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      #pause-btn {
+        background: none;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+      
+      #pause-btn:hover {
+        background: var(--primary);
+        color: white;
+      }
+
+      .hp-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: var(--text);
+        font-weight: 700;
+        letter-spacing: 1px;
+      }
+
+      .hp-bar-container {
+        width: 100%;
+        height: 16px;
+        background: #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #ccc;
+      }
+
+      .hp-bar-fill {
+        height: 100%;
+        width: 100%;
+        background: var(--hp-high);
+        transition: width 0.4s ease-out, background-color 0.4s ease;
+      }
+
+      /* Card Container */
+      #game-area {
+        flex: 1;
+        width: 100%;
+        max-width: 450px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 80px; /* Space for HUD */
+      }
+
+      .card {
+        background: var(--card-bg);
+        border-radius: 20px;
+        padding: 25px;
+        width: 90%;
+        height: auto;
+        min-height: 400px;
+        box-shadow: 0 15px 35px rgba(0,51,102,0.15);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: absolute;
+        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s;
+        border-top: 6px solid var(--primary);
+      }
+
+      /* Boss Card Style */
+      .card.boss-card {
+        border-top: 6px solid var(--danger);
+        background: #FFF5F5;
+      }
+
+      /* New Header Layout for Timer */
+      .card-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .card-context {
+        font-size: 0.9rem;
+        color: var(--secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .boss-card .card-context {
+        color: var(--danger);
+      }
+
+      .card-timer {
+        font-size: 0.9rem;
+        font-weight: 700;
+        background-color: #FFF3E0;
+        color: var(--secondary);
+        padding: 4px 10px;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+      }
+
+      .card-timer.urgent {
+        background-color: var(--danger);
+        color: white;
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.9; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+
+      .card-question {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 20px;
+        line-height: 1.3;
+      }
+
+      .card-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      /* Options Buttons */
+      .option-btn {
+        background: white;
+        border: 2px solid #E0E0E0;
+        padding: 16px;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .option-btn:active {
+        transform: scale(0.98);
+      }
+
+      .option-btn.selected {
+        border-color: var(--primary);
+        background-color: #f0f4f8;
+      }
+
+      .option-btn:disabled {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+
+      /* Main Action Button */
+      .btn-primary {
+        background-color: var(--secondary);
+        color: white;
+        border: none;
+        padding: 16px 32px;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+        transition: transform 0.2s;
+        width: 100%;
+        margin-top: 20px;
+      }
+
+      .btn-primary:active {
+        transform: scale(0.95);
+      }
+
+      /* Modal Base Style */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      
+      .modal-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      
+      .modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 20px;
+        text-align: center;
+        max-width: 80%;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      
+      @keyframes popIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+
+      /* Feedback Modal */
+      #feedback-modal {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: white;
+        padding: 30px 20px;
+        border-radius: 25px 25px 0 0;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+        z-index: 200;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      #feedback-modal.active {
+        transform: translateY(0);
+      }
+
+      .feedback-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin-bottom: 15px;
+      }
+
+      .correct { color: var(--success); }
+      .wrong { color: var(--danger); }
+
+      .feedback-text {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #555;
+        margin-bottom: 20px;
+      }
+
+      /* Updated Source Cite Style */
+      .source-cite {
+        font-size: 0.9rem;
+        color: var(--primary);
+        font-weight: 700;
+        font-style: italic;
+        display: block;
+        margin-top: 15px;
+        text-decoration: underline;
+        cursor: pointer;
+        transition: color 0.2s;
+        border-bottom: 2px solid transparent;
+      }
+      
+      .source-cite:hover {
+        color: var(--secondary);
+      }
+
+      /* Animations */
+      .slide-out-left {
+        transform: translateX(-150%) rotate(-20deg) !important;
+        opacity: 0;
+      }
+      
+      .slide-in-right {
+        animation: slideIn 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+      }
+
+      @keyframes slideIn {
+        from { transform: translateX(100%) rotate(10deg); opacity: 0; }
+        to { transform: translateX(0) rotate(0); opacity: 1; }
+      }
+
+      /* Icons */
+      .icon-bio::before { content: "☣️"; }
+      .icon-chem::before { content: "🧪"; }
+      .icon-phys::before { content: "☢️"; }
+      .icon-ppe::before { content: "🥽"; }
+      .icon-env::before { content: "🏗️"; }
+
+    </style>
+  </head>
+  <body>
+    <!-- Intro Screen -->
+    <div id="intro-screen" class="screen">
+      <div class="logo-icon">🛡️</div>
+      <h1>Resolvendo Desafios</h1>
+      <p class="subtitle">
+        Mais um dia começa no laboratório. A equipe foi reduzida e hoje você está por conta própria.
+        <br><br>
+        De repente, demandas urgentes e situações de risco começam a surgir. Resolva os problemas antes que seja tarde!
+        <br><br>
+        <small style="color:rgba(255,255,255,0.7)">(Modo RPG: Erros causam dano à sua integridade. Cuidado!)</small>
+      </p>
+      
+      <div class="difficulty-container">
+        <div class="difficulty-label">Nível de Ameaça</div>
+        <div class="difficulty-buttons">
+          <button class="diff-btn selected" data-diff="normal">Normal</button>
+          <button class="diff-btn" data-diff="hard">Difícil</button>
+        </div>
+      </div>
+
+      <button id="start-btn" class="btn-primary">Iniciar Plantão</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen hidden" style="justify-content: flex-start;">
+      <div id="game-hud">
+        <div class="hud-row">
+          <span class="score-display">XP: <span id="score-val">0</span></span>
+          <div class="hud-controls">
+            <button id="pause-btn" title="Pausar Jogo">⏸️</button>
+          </div>
+        </div>
+        <div class="hud-row" style="margin-top: 5px;">
+           <span class="hp-label" style="flex:1">Integridade do Traje</span>
+        </div>
+        <div class="hp-bar-container">
+          <div id="hp-bar" class="hp-bar-fill"></div>
+        </div>
+      </div>
+      
+      <div id="game-area">
+        <!-- Cards will be injected here -->
+      </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="pause-modal" class="modal-overlay">
+      <div class="modal-content">
+        <h2 style="color:var(--primary); margin-bottom:15px;">Jogo Pausado</h2>
+        <p style="margin-bottom:20px; color:#666;">Respire fundo e organize suas ideias.</p>
+        <button id="resume-btn" class="btn-primary">Retomar</button>
+      </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal">
+      <div id="feedback-header" class="feedback-header">
+        <!-- Icon and Status -->
+      </div>
+      <p id="feedback-reason" class="feedback-text"></p>
+      <a href="https://ctbio.fiocruz.br/wp-content/uploads/2023/08/Manual-de-Biosseguranca-Laboratorial-Quarta-Ed.-2021-OPAS.pdf" target="_blank" class="source-cite">📖 Ref: Manual de Biossegurança OPAS - Seção 3</a>
+      <button id="next-btn" class="btn-primary">Continuar</button>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="screen hidden" style="text-align: center;">
+      <div id="end-icon" style="font-size: 4rem; margin-bottom: 20px;"></div>
+      <h2 id="end-title" style="color: var(--primary); font-size: 2rem; margin-bottom: 10px;"></h2>
+      <p id="end-msg" style="color: #666; font-size: 1.1rem; margin-bottom: 30px;"></p>
+      <div style="font-size: 2rem; font-weight: bold; color: var(--secondary); margin-bottom: 30px;">
+        XP Final: <span id="final-score">0</span>
+      </div>
+      <button id="restart-btn" class="btn-primary">Novo Plantão</button>
+    </div>
+
+    <script>
+      // === GAME DATA ===
+      const SCENARIOS = [
+        {
+          id: 1,
+          title: "Caso 01: Tuberculose",
+          context: "Você recebeu uma amostra de escarro de um paciente com forte suspeita de tuberculose pulmonar para baciloscopia.",
+          cards: [
+            {
+              type: 'risk',
+              question: "Qual o principal tipo de risco associado a esta amostra?",
+              options: [
+                { id: 'bio', text: "Risco Biológico", isCorrect: true, icon: "☣️" },
+                { id: 'chem', text: "Risco Químico", isCorrect: false, icon: "🧪" },
+                { id: 'phys', text: "Risco Físico", isCorrect: false, icon: "☢️" }
+              ],
+              justification: "O Mycobacterium tuberculosis é um agente biológico patogênico. O risco primário é a inalação de aerossóis contendo o bacilo."
+            },
+            {
+              type: 'level',
+              question: "Qual o Nível de Biossegurança (NB) mínimo recomendado para manipulação da cultura?",
+              options: [
+                { id: 'nb1', text: "NB-1 (Básico)", isCorrect: false },
+                { id: 'nb2', text: "NB-2 (Moderado)", isCorrect: false },
+                { id: 'nb3', text: "NB-3 (Contenção)", isCorrect: true }
+              ],
+              justification: "Embora a baciloscopia direta possa ser feita em NB-2, a cultura e manipulação de concentrações de M. tuberculosis exigem NB-3 devido ao alto risco de transmissão por aerossol."
+            },
+            {
+              type: 'ppe',
+              question: "Qual EPI é indispensável para proteção respiratória neste caso?",
+              options: [
+                { id: 'surg', text: "Máscara Cirúrgica", isCorrect: false },
+                { id: 'n95', text: "Respirador N95 / PFF2", isCorrect: true },
+                { id: 'cloth', text: "Máscara de Tecido", isCorrect: false }
+              ],
+              justification: "Para proteção contra aerossóis biológicos finos, a máscara cirúrgica é insuficiente. O uso de respirador N95/PFF2 é obrigatório."
+            }
+          ]
+        },
+        {
+          id: 2,
+          title: "Caso 02: Derramamento Ácido",
+          context: "Um frasco de Ácido Sulfúrico Concentrado caiu e quebrou na bancada.",
+          cards: [
+            {
+              type: 'risk',
+              question: "Classifique o risco imediato deste acidente:",
+              options: [
+                { id: 'erg', text: "Ergonômico", isCorrect: false, icon: "🧘" },
+                { id: 'chem', text: "Químico", isCorrect: true, icon: "🧪" },
+                { id: 'acc', text: "Mecânico", isCorrect: false, icon: "🔨" }
+              ],
+              justification: "O Ácido Sulfúrico é altamente corrosivo e reativo, caracterizando um risco químico grave de queimaduras e vapores tóxicos."
+            },
+            {
+              type: 'environment',
+              question: "Qual equipamento de proteção coletiva (EPC) deveria ter sido usado na manipulação?",
+              options: [
+                { id: 'bsc', text: "Cabine de Segurança Biológica", isCorrect: false },
+                { id: 'fume', text: "Capela de Exaustão Química", isCorrect: true },
+                { id: 'flux', text: "Fluxo Laminar Horizontal", isCorrect: false }
+              ],
+              justification: "Manipulação de ácidos voláteis ou concentrados deve ser feita sob Capela de Exaustão Química para remover vapores."
+            }
+          ]
+        },
+        {
+          id: 3,
+          title: "Caso 03: Descarte de Agulhas",
+          context: "Após coleta de sangue, você precisa descartar a agulha utilizada.",
+          cards: [
+            {
+              type: 'risk',
+              question: "Onde deve ser feito o descarte correto?",
+              options: [
+                { id: 'trash', text: "Lixo Comum", isCorrect: false, icon: "🗑️" },
+                { id: 'bag', text: "Saco Branco Leitoso", isCorrect: false, icon: "⚪" },
+                { id: 'box', text: "Coletor Perfurocortante", isCorrect: true, icon: "📦" }
+              ],
+              justification: "Agulhas são resíduos do Grupo E (Perfurocortantes) e devem ser descartadas em recipientes rígidos, estanques e identificados (caixa amarela)."
+            }
+          ]
+        },
+        {
+          id: 4,
+          title: "Caso 04: Cultura Celular",
+          context: "Você está realizando a manutenção de uma linhagem de células HeLa na Cabine de Segurança Biológica.",
+          cards: [
+            {
+              type: 'environment',
+              question: "Qual prática compromete a esterilidade e a segurança dentro da Cabine?",
+              options: [
+                { id: 'bunsen', text: "Uso de Bico de Bunsen", isCorrect: true },
+                { id: 'alc', text: "Limpar superfícies com Álcool 70%", isCorrect: false },
+                { id: 'org', text: "Organizar materiais limpo/sujo", isCorrect: false }
+              ],
+              justification: "O uso de Bico de Bunsen em Cabines de Segurança Biológica gera turbulência no fluxo de ar, comprometendo a proteção do produto e do operador."
+            },
+            {
+              type: 'risk',
+              question: "Para evitar contaminação cruzada entre linhagens diferentes, você deve:",
+              options: [
+                { id: 'multi', text: "Manipular várias linhagens juntas", isCorrect: false },
+                { id: 'share', text: "Compartilhar garrafas de meio", isCorrect: false },
+                { id: 'single', text: "Manipular uma linhagem por vez", isCorrect: true }
+              ],
+              justification: "Deve-se manipular apenas uma linhagem celular por vez na cabine, descontaminando a superfície entre os procedimentos para evitar contaminação cruzada."
+            },
+            {
+              type: 'risk',
+              question: "Como deve ser descartado o meio de cultura líquido aspirado?",
+              options: [
+                { id: 'autoclave', text: "Tratar com hipoclorito antes do descarte", isCorrect: true, icon: "🧪" },
+                { id: 'sink', text: "Diretamente na pia", isCorrect: false, icon: "🚰" },
+                { id: 'trash', text: "Lixo comum", isCorrect: false }
+              ],
+              justification: "Resíduos líquidos biológicos devem ser descontaminados quimicamente (ex: Hipoclorito de Sódio a 1%) ou autoclavados antes de serem descartados na rede de esgoto."
+            }
+          ]
+        },
+        {
+          id: 5,
+          title: "CHEFE FINAL: INCIDENTE NB-3",
+          context: "ALERTA VERMELHO! Ocorreu uma quebra de centrífuga contendo um agente viral desconhecido. O alarme disparou e a ventilação falhou. Siga o protocolo.",
+          isBoss: true,
+          cards: [
+            {
+              type: 'risk',
+              question: "A centrífuga acabou de quebrar com um estrondo. O que você faz IMEDIATAMENTE?",
+              options: [
+                { id: 'open', text: "Abro a centrífuga para ver o dano", isCorrect: false },
+                { id: 'stop', text: "Desligo e espero 30 minutos (aerossóis)", isCorrect: true },
+                { id: 'run', text: "Saio correndo da sala sem avisar", isCorrect: false }
+              ],
+              justification: "Em caso de quebra com risco de aerossóis, não abra o equipamento. Desligue e aguarde a sedimentação dos aerossóis (geralmente 30min)."
+            },
+            {
+              type: 'ppe',
+              question: "Após os 30 minutos, você vai entrar para limpar. Qual a proteção respiratória?",
+              options: [
+                { id: 'mask', text: "Máscara Cirúrgica Dupla", isCorrect: false },
+                { id: 'papr', text: "Respirador Motorizado ou N95 Fit-tested", isCorrect: true },
+                { id: 'none', text: "Apenas Face Shield", isCorrect: false }
+              ],
+              justification: "Para um agente desconhecido e alta carga de aerossóis (acidente), a proteção deve ser máxima (N95 validada ou PAPR)."
+            },
+            {
+              type: 'risk',
+              question: "Você encontrou vidro quebrado contaminado. Como remover?",
+              options: [
+                { id: 'hands', text: "Com luvas grossas e as mãos", isCorrect: false },
+                { id: 'forceps', text: "Com pinças ou pá e escova", isCorrect: true },
+                { id: 'paper', text: "Com papel toalha", isCorrect: false }
+              ],
+              justification: "Nunca manipule vidro quebrado diretamente com as mãos, mesmo com luvas. Use pinças ou pá."
+            },
+            {
+              type: 'environment',
+              question: "Qual desinfetante é mais indicado para conter o derramamento viral inicial?",
+              options: [
+                { id: 'water', text: "Água e Sabão", isCorrect: false },
+                { id: 'alcohol', text: "Álcool 70% (volátil)", isCorrect: false },
+                { id: 'hypo', text: "Hipoclorito de Sódio 1% (Água Sanitária)", isCorrect: true }
+              ],
+              justification: "O Hipoclorito é um desinfetante de amplo espectro eficaz para inativação de derramamentos biológicos, seguido de tempo de contato."
+            },
+            {
+              type: 'environment',
+              question: "Onde descartar os papéis e luvas contaminados pelo derramamento?",
+              options: [
+                { id: 'trash', text: "Lixo Comum", isCorrect: false },
+                { id: 'auto-bag', text: "Saco de Autoclavagem (Vermelho/Branco)", isCorrect: true },
+                { id: 'recycl', text: "Reciclável", isCorrect: false }
+              ],
+              justification: "Todo material sólido contaminado deve ir para saco de resíduo biológico infectante para posterior tratamento (autoclave/incineração)."
+            },
+            {
+              type: 'risk',
+              question: "Você sentiu um respingo na pele exposta durante o processo. O que fazer?",
+              options: [
+                { id: 'ignore', text: "Ignorar para não atrasar", isCorrect: false },
+                { id: 'wait', text: "Esperar chegar em casa", isCorrect: false },
+                { id: 'wash', text: "Lavar imediatamente com água e sabão por 15 min", isCorrect: true }
+              ],
+              justification: "Exposição percutânea ou em pele deve ser lavada exaustivamente com água e sabão imediatamente."
+            }
+          ]
+        }
+      ];
+
+      // === CONFIGURATION ===
+      const DIFFICULTIES = {
+        normal: { timeLimit: 15, damageMultiplier: 1.0 },
+        hard: { timeLimit: 10, damageMultiplier: 1.5 }
+      };
+
+      let currentDifficulty = DIFFICULTIES.normal;
+
+      // === GAME STATE ===
+      let currentState = {
+        scenarioIndex: 0,
+        cardIndex: 0,
+        score: 0,
+        health: 100,
+        isGameOver: false,
+        isPaused: false
+      };
+
+      let timerInterval = null;
+      let currentTimerValue = 0;
+
+      // === DOM ELEMENTS ===
+      const introScreen = document.getElementById('intro-screen');
+      const gameScreen = document.getElementById('game-screen');
+      const endScreen = document.getElementById('end-screen');
+      const gameArea = document.getElementById('game-area');
+      const scoreEl = document.getElementById('score-val');
+      const hpBarEl = document.getElementById('hp-bar');
+      const feedbackModal = document.getElementById('feedback-modal');
+      const feedbackHeader = document.getElementById('feedback-header');
+      const feedbackReason = document.getElementById('feedback-reason');
+      const nextBtn = document.getElementById('next-btn');
+      const startBtn = document.getElementById('start-btn');
+      const restartBtn = document.getElementById('restart-btn');
+      const diffButtons = document.querySelectorAll('.diff-btn');
+      const pauseBtn = document.getElementById('pause-btn');
+      const pauseModal = document.getElementById('pause-modal');
+      const resumeBtn = document.getElementById('resume-btn');
+
+      // === EVENT LISTENERS ===
+      if(startBtn) startBtn.addEventListener('click', startGame);
+      if(nextBtn) nextBtn.addEventListener('click', advanceGame);
+      if(restartBtn) restartBtn.addEventListener('click', returnToIntro);
+      if(pauseBtn) pauseBtn.addEventListener('click', togglePause);
+      if(resumeBtn) resumeBtn.addEventListener('click', togglePause);
+
+      // Difficulty Selection Logic
+      diffButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          diffButtons.forEach(b => b.classList.remove('selected'));
+          const target = e.target;
+          target.classList.add('selected');
+          const diffKey = target.getAttribute('data-diff') || 'normal';
+          currentDifficulty = DIFFICULTIES[diffKey];
+        });
+      });
+
+      // === FUNCTIONS ===
+
+      function returnToIntro() {
+        if (timerInterval) clearInterval(timerInterval);
+        endScreen.classList.add('hidden');
+        gameScreen.classList.add('hidden');
+        introScreen.classList.remove('hidden');
+      }
+
+      function togglePause() {
+        currentState.isPaused = !currentState.isPaused;
+
+        if (currentState.isPaused) {
+          pauseModal.classList.add('active');
+          if (timerInterval) clearInterval(timerInterval);
+        } else {
+          pauseModal.classList.remove('active');
+          const timerEl = document.querySelector('.card-timer');
+          if (timerEl) {
+            const justification = SCENARIOS[currentState.scenarioIndex].cards[currentState.cardIndex].justification;
+            const isBoss = SCENARIOS[currentState.scenarioIndex].isBoss;
+            resumeTimer(timerEl, justification, isBoss);
+          }
+        }
+      }
+
+      function startGame() {
+        currentState = {
+          scenarioIndex: 0,
+          cardIndex: 0,
+          score: 0,
+          health: 100,
+          isGameOver: false,
+          isPaused: false
+        };
+        
+        if (timerInterval) clearInterval(timerInterval);
+
+        updateHUD();
+        
+        introScreen.classList.add('hidden');
+        endScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        
+        renderCard();
+      }
+
+      function updateHUD() {
+        if(scoreEl) scoreEl.innerText = currentState.score.toString();
+        if(hpBarEl) {
+          hpBarEl.style.width = `${Math.max(0, currentState.health)}%`;
+          if(currentState.health > 60) {
+            hpBarEl.style.backgroundColor = '#4CAF50';
+          } else if (currentState.health > 30) {
+            hpBarEl.style.backgroundColor = '#FF9800';
+          } else {
+            hpBarEl.style.backgroundColor = '#F44336';
+          }
+        }
+      }
+
+      function renderCard() {
+        if (!gameArea) return;
+        gameArea.innerHTML = '';
+
+        const scenario = SCENARIOS[currentState.scenarioIndex];
+        const cardData = scenario.cards[currentState.cardIndex];
+
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card slide-in-right';
+        
+        if (scenario.isBoss) {
+          cardEl.classList.add('boss-card');
+        }
+        
+        const headerRow = document.createElement('div');
+        headerRow.className = 'card-header-row';
+
+        const contextEl = document.createElement('span');
+        contextEl.className = 'card-context';
+        contextEl.innerText = scenario.title;
+        
+        const timerEl = document.createElement('span');
+        timerEl.className = 'card-timer';
+        currentTimerValue = currentDifficulty.timeLimit; 
+        timerEl.innerText = `⏳ ${currentTimerValue}s`;
+        
+        headerRow.appendChild(contextEl);
+        headerRow.appendChild(timerEl);
+        cardEl.appendChild(headerRow);
+        
+        if (currentState.cardIndex === 0) {
+           const scenarioIntro = document.createElement('p');
+           scenarioIntro.style.fontSize = '0.9rem';
+           scenarioIntro.style.color = scenario.isBoss ? '#D32F2F' : '#666';
+           scenarioIntro.style.marginBottom = '10px';
+           scenarioIntro.style.fontStyle = 'italic';
+           scenarioIntro.style.fontWeight = scenario.isBoss ? 'bold' : 'normal';
+           scenarioIntro.innerText = scenario.context;
+           cardEl.appendChild(scenarioIntro);
+        }
+
+        const questionEl = document.createElement('div');
+        questionEl.className = 'card-question';
+        questionEl.innerText = cardData.question;
+
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'card-content';
+
+        cardData.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          
+          const iconSpan = document.createElement('span');
+          iconSpan.innerText = opt.icon || '🔹';
+          
+          const textSpan = document.createElement('span');
+          textSpan.innerText = opt.text;
+
+          btn.appendChild(iconSpan);
+          btn.appendChild(textSpan);
+
+          btn.onclick = () => handleAnswer(opt, cardData, cardEl, scenario.isBoss);
+          optionsDiv.appendChild(btn);
+        });
+
+        cardEl.appendChild(questionEl);
+        cardEl.appendChild(optionsDiv);
+        
+        gameArea.appendChild(cardEl);
+
+        startTimer(timerEl, cardData.justification, scenario.isBoss);
+      }
+
+      function startTimer(displayElement, justification, isBoss) {
+        if (timerInterval) clearInterval(timerInterval);
+        
+        timerInterval = setInterval(() => {
+          if (currentState.isPaused) return;
+
+          currentTimerValue--;
+          displayElement.innerText = `⏳ ${currentTimerValue}s`;
+          
+          if (currentTimerValue <= 5) {
+            displayElement.classList.add('urgent');
+          }
+
+          if (currentTimerValue <= 0) {
+            clearInterval(timerInterval);
+            handleTimeout(justification, isBoss);
+          }
+        }, 1000);
+      }
+
+      function resumeTimer(displayElement, justification, isBoss) {
+        startTimer(displayElement, justification, isBoss);
+      }
+
+      function handleTimeout(justification, isBoss) {
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+
+        const damage = 10 * currentDifficulty.damageMultiplier;
+        applyDamage(damage);
+
+        if(feedbackModal && feedbackHeader && feedbackReason) {
+          feedbackModal.classList.add('active');
+          feedbackHeader.innerHTML = '<span style="font-size:2rem">⌛</span> <span class="wrong">Tempo Esgotado!</span>';
+          feedbackReason.innerText = "A demora expôs você ao risco. -" + Math.ceil(damage) + " HP. " + justification;
+        }
+      }
+
+      function handleAnswer(option, cardData, cardElement, isBoss) {
+        if (timerInterval) clearInterval(timerInterval);
+
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.disabled = true);
+
+        const isCorrect = option.isCorrect;
+        
+        if (isCorrect) {
+          currentState.score += 150;
+        } else {
+          let baseDamage = 20;
+          if (isBoss) baseDamage = 30;
+          
+          const damage = baseDamage * currentDifficulty.damageMultiplier;
+          applyDamage(damage);
+        }
+
+        updateHUD();
+        showFeedback(isCorrect, cardData.justification);
+      }
+
+      function applyDamage(amount) {
+        currentState.health = Math.max(0, currentState.health - amount);
+        
+        const gameBody = document.body;
+        gameBody.classList.add('shake');
+        setTimeout(() => gameBody.classList.remove('shake'), 500);
+        
+        updateHUD();
+      }
+
+      function showFeedback(isCorrect, justification) {
+        if(!feedbackModal || !feedbackHeader || !feedbackReason) return;
+
+        feedbackModal.classList.add('active');
+        
+        if(isCorrect) {
+          feedbackHeader.innerHTML = '<span style="font-size:2rem">✅</span> <span class="correct">Sucesso!</span>';
+        } else {
+          feedbackHeader.innerHTML = '<span style="font-size:2rem">💥</span> <span class="wrong">Dano Recebido!</span>';
+        }
+
+        feedbackReason.innerText = justification;
+      }
+
+      function advanceGame() {
+        feedbackModal.classList.remove('active');
+        if (timerInterval) clearInterval(timerInterval);
+
+        if (currentState.health <= 0) {
+          endGame(false);
+          return;
+        }
+
+        const oldCard = document.querySelector('.card');
+        if(oldCard) {
+          oldCard.classList.add('slide-out-left');
+        }
+
+        const currentScenario = SCENARIOS[currentState.scenarioIndex];
+
+        setTimeout(() => {
+          if (currentState.cardIndex < currentScenario.cards.length - 1) {
+            currentState.cardIndex++;
+            renderCard();
+          } else {
+            currentState.scenarioIndex++;
+            currentState.cardIndex = 0;
+
+            if (currentState.scenarioIndex < SCENARIOS.length) {
+              renderCard();
+            } else {
+              endGame(true);
+            }
+          }
+        }, 300);
+      }
+
+      function endGame(victory) {
+        if (timerInterval) clearInterval(timerInterval);
+        
+        gameScreen.classList.add('hidden');
+        endScreen.classList.remove('hidden');
+
+        const title = document.getElementById('end-title');
+        const msg = document.getElementById('end-msg');
+        const icon = document.getElementById('end-icon');
+        const finalScore = document.getElementById('final-score');
+
+        if(finalScore) finalScore.innerText = currentState.score.toString();
+
+        if (victory) {
+          if(title) title.innerText = "Missão Cumprida!";
+          if(msg) msg.innerText = "Você conteve o surto e protegeu o laboratório. A equipe de resgate chegou.";
+          if(icon) icon.innerText = "🎖️";
+          if(title) title.style.color = "var(--success)";
+        } else {
+          if(title) title.innerText = "Contaminação Fatal";
+          if(msg) msg.innerText = "Seu traje foi comprometido. A contenção falhou.";
+          if(icon) icon.innerText = "💀";
+          if(title) title.style.color = "var(--danger)";
+        }
+      }
+    </script>
+  </body>
+</html>
