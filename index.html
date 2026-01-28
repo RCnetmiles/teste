@@ -1,1087 +1,920 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Resolvendo Desafios</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de POPs - Citometria</title>
+    <!-- Tailwind CSS para estilização rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <!-- html2pdf para gerar PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-      :root {
-        --primary: #003366;
-        --secondary: #FF8C00;
-        --bg: #F4F7F6;
-        --card-bg: #FFFFFF;
-        --text: #333333;
-        --danger: #D32F2F;
-        --success: #388E3C;
-        --hp-high: #4CAF50;
-        --hp-med: #FF9800;
-        --hp-low: #F44336;
-        --gray: #B0BEC5;
-      }
+        /* Estilos globais */
+        body {
+            overscroll-behavior-y: none; /* Previne efeito elástico indesejado no mobile */
+        }
 
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      }
+        /* Checkbox customizado para ficar visível e bonito */
+        input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            border: 2px solid #d1d5db;
+            color: #2563eb;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            display: inline-block;
+            position: relative;
+            vertical-align: middle;
+            background-color: white;
+        }
+        
+        input[type="checkbox"]:checked {
+            background-color: #2563eb;
+            border-color: #2563eb;
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
 
-      body {
-        background-color: var(--bg);
-        color: var(--text);
-        height: 100vh;
-        width: 100vw;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
+        /* Estilo para simular folha A4 na tela (Desktop) */
+        .a4-paper {
+            max-width: 210mm;
+            min-height: 297mm;
+            background: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            margin: 0 auto;
+            padding: 20mm;
+        }
 
-      /* Screens */
-      .screen {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        transition: opacity 0.3s ease;
-        z-index: 10;
-        background: var(--bg);
-      }
-
-      .hidden {
-        display: none !important;
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      /* Screen Shake Animation for Damage */
-      .shake {
-        animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-      }
-
-      @keyframes shake {
-        10%, 90% { transform: translate3d(-1px, 0, 0); }
-        20%, 80% { transform: translate3d(2px, 0, 0); }
-        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-        40%, 60% { transform: translate3d(4px, 0, 0); }
-      }
-
-      /* Intro Screen */
-      #intro-screen {
-        text-align: center;
-        background: linear-gradient(135deg, var(--primary) 0%, #001a33 100%);
-        color: white;
-      }
-
-      .logo-icon {
-        font-size: 4rem;
-        margin-bottom: 20px;
-      }
-
-      h1 {
-        font-size: 2.2rem;
-        margin-bottom: 15px;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-      }
-
-      p.subtitle {
-        font-size: 1rem;
-        opacity: 0.95;
-        margin-bottom: 30px;
-        max-width: 340px;
-        line-height: 1.6;
-        font-weight: 300;
-      }
-
-      /* Difficulty Selector */
-      .difficulty-container {
-        margin-bottom: 30px;
-        width: 100%;
-        max-width: 300px;
-      }
-
-      .difficulty-label {
-        font-size: 0.9rem;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        opacity: 0.8;
-      }
-
-      .difficulty-buttons {
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-      }
-
-      .diff-btn {
-        flex: 1;
-        padding: 12px 5px;
-        background: rgba(255,255,255,0.1);
-        border: 2px solid rgba(255,255,255,0.3);
-        color: white;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.2s;
-        font-size: 0.9rem;
-      }
-
-      .diff-btn:hover {
-        background: rgba(255,255,255,0.2);
-      }
-
-      .diff-btn.selected {
-        background: var(--secondary);
-        border-color: var(--secondary);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        transform: scale(1.05);
-      }
-
-      /* Game HUD */
-      #game-hud {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        padding: 15px 20px;
-        background: white;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        z-index: 100;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .hud-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-      }
-
-      .score-display {
-        font-weight: 700;
-        color: var(--primary);
-        font-size: 1.2rem;
-      }
-      
-      .hud-controls {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      #pause-btn {
-        background: none;
-        border: 2px solid var(--primary);
-        color: var(--primary);
-        border-radius: 50%;
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-      }
-      
-      #pause-btn:hover {
-        background: var(--primary);
-        color: white;
-      }
-
-      .hp-label {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        color: var(--text);
-        font-weight: 700;
-        letter-spacing: 1px;
-      }
-
-      .hp-bar-container {
-        width: 100%;
-        height: 16px;
-        background: #e0e0e0;
-        border-radius: 8px;
-        overflow: hidden;
-        border: 1px solid #ccc;
-      }
-
-      .hp-bar-fill {
-        height: 100%;
-        width: 100%;
-        background: var(--hp-high);
-        transition: width 0.4s ease-out, background-color 0.4s ease;
-      }
-
-      /* Card Container */
-      #game-area {
-        flex: 1;
-        width: 100%;
-        max-width: 450px;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 80px; /* Space for HUD */
-      }
-
-      .card {
-        background: var(--card-bg);
-        border-radius: 20px;
-        padding: 25px;
-        width: 90%;
-        height: auto;
-        min-height: 400px;
-        box-shadow: 0 15px 35px rgba(0,51,102,0.15);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        position: absolute;
-        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s;
-        border-top: 6px solid var(--primary);
-      }
-
-      /* Boss Card Style */
-      .card.boss-card {
-        border-top: 6px solid var(--danger);
-        background: #FFF5F5;
-      }
-
-      /* New Header Layout for Timer */
-      .card-header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-
-      .card-context {
-        font-size: 0.9rem;
-        color: var(--secondary);
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-
-      .boss-card .card-context {
-        color: var(--danger);
-      }
-
-      .card-timer {
-        font-size: 0.9rem;
-        font-weight: 700;
-        background-color: #FFF3E0;
-        color: var(--secondary);
-        padding: 4px 10px;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-      }
-
-      .card-timer.urgent {
-        background-color: var(--danger);
-        color: white;
-        animation: pulse 1s infinite;
-      }
-
-      @keyframes pulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.05); opacity: 0.9; }
-        100% { transform: scale(1); opacity: 1; }
-      }
-
-      .card-question {
-        font-size: 1.4rem;
-        font-weight: 600;
-        color: var(--primary);
-        margin-bottom: 20px;
-        line-height: 1.3;
-      }
-
-      .card-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        justify-content: center;
-      }
-
-      /* Options Buttons */
-      .option-btn {
-        background: white;
-        border: 2px solid #E0E0E0;
-        padding: 16px;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text);
-        cursor: pointer;
-        transition: all 0.2s;
-        text-align: left;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .option-btn:active {
-        transform: scale(0.98);
-      }
-
-      .option-btn.selected {
-        border-color: var(--primary);
-        background-color: #f0f4f8;
-      }
-
-      .option-btn:disabled {
-        opacity: 0.7;
-        pointer-events: none;
-      }
-
-      /* Main Action Button */
-      .btn-primary {
-        background-color: var(--secondary);
-        color: white;
-        border: none;
-        padding: 16px 32px;
-        border-radius: 50px;
-        font-size: 1.1rem;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
-        transition: transform 0.2s;
-        width: 100%;
-        margin-top: 20px;
-      }
-
-      .btn-primary:active {
-        transform: scale(0.95);
-      }
-
-      /* Modal Base Style */
-      .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.6);
-        z-index: 500;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(5px);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s;
-      }
-      
-      .modal-overlay.active {
-        opacity: 1;
-        pointer-events: auto;
-      }
-      
-      .modal-content {
-        background: white;
-        padding: 30px;
-        border-radius: 20px;
-        text-align: center;
-        max-width: 80%;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      }
-      
-      @keyframes popIn {
-        from { transform: scale(0.8); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
-      }
-
-      /* Feedback Modal */
-      #feedback-modal {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: white;
-        padding: 30px 20px;
-        border-radius: 25px 25px 0 0;
-        box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
-        z-index: 200;
-        transform: translateY(100%);
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      }
-
-      #feedback-modal.active {
-        transform: translateY(0);
-      }
-
-      .feedback-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 1.5rem;
-        font-weight: 800;
-        margin-bottom: 15px;
-      }
-
-      .correct { color: var(--success); }
-      .wrong { color: var(--danger); }
-
-      .feedback-text {
-        font-size: 1rem;
-        line-height: 1.6;
-        color: #555;
-        margin-bottom: 20px;
-      }
-
-      /* Updated Source Cite Style */
-      .source-cite {
-        font-size: 0.9rem;
-        color: var(--primary);
-        font-weight: 700;
-        font-style: italic;
-        display: block;
-        margin-top: 15px;
-        text-decoration: underline;
-        cursor: pointer;
-        transition: color 0.2s;
-        border-bottom: 2px solid transparent;
-      }
-      
-      .source-cite:hover {
-        color: var(--secondary);
-      }
-
-      /* Animations */
-      .slide-out-left {
-        transform: translateX(-150%) rotate(-20deg) !important;
-        opacity: 0;
-      }
-      
-      .slide-in-right {
-        animation: slideIn 0.5s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
-      }
-
-      @keyframes slideIn {
-        from { transform: translateX(100%) rotate(10deg); opacity: 0; }
-        to { transform: translateX(0) rotate(0); opacity: 1; }
-      }
-
-      /* Icons */
-      .icon-bio::before { content: "☣️"; }
-      .icon-chem::before { content: "🧪"; }
-      .icon-phys::before { content: "☢️"; }
-      .icon-ppe::before { content: "🥽"; }
-      .icon-env::before { content: "🏗️"; }
-
+        /* Estilos de Impressão */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; height: auto; overflow: visible; }
+            .a4-paper { box-shadow: none; margin: 0; padding: 0; width: 100%; max-width: none; }
+            .page-break { page-break-before: always; }
+        }
+        
+        /* Estilo específico para o PDF */
+        .pdf-content {
+            font-family: 'Arial', 'Helvetica', sans-serif;
+            line-height: 1.5;
+            color: #000;
+        }
+        
+        .pdf-content h1 {
+            color: #1e3a8a;
+            border-bottom: 2px solid #1e3a8a;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 24pt;
+        }
+        
+        .pdf-content h3 {
+            color: #1e3a8a;
+            background-color: #f0f9ff;
+            padding: 0.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #1e40af;
+            font-size: 14pt;
+            font-weight: bold;
+        }
+        
+        .pdf-content h4 {
+            color: #374151;
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+            font-size: 12pt;
+            font-weight: bold;
+        }
+        
+        .pdf-content p {
+            margin-bottom: 1rem;
+            text-align: justify;
+        }
+        
+        .pdf-content ul, .pdf-content ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        
+        .pdf-content li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .pdf-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        .pdf-content th, .pdf-content td {
+            border: 1px solid #d1d5db;
+            padding: 0.5rem;
+            font-size: 10pt;
+            vertical-align: top;
+        }
+        
+        .pdf-content th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+        }
+        
+        .pdf-content hr {
+            border: 0;
+            border-top: 2px solid #e5e7eb;
+            margin: 1.5rem 0;
+        }
+        
+        .pdf-content strong {
+            font-weight: bold;
+        }
+        
+        .pdf-content em {
+            font-style: italic;
+        }
+        
+        .pdf-checkbox {
+            font-size: 14pt;
+            margin-right: 0.5rem;
+        }
+        
+        .pdf-header {
+            border-bottom: 2px solid #000;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .pdf-footer {
+            margin-top: 4rem;
+            padding-top: 1rem;
+            border-top: 1px solid #d1d5db;
+        }
     </style>
-  </head>
-  <body>
-    <!-- Intro Screen -->
-    <div id="intro-screen" class="screen">
-      <div class="logo-icon">🛡️</div>
-      <h1>Resolvendo Desafios</h1>
-      <p class="subtitle">
-        Mais um dia começa no laboratório. A equipe foi reduzida e hoje você está por conta própria.
-        <br><br>
-        De repente, demandas urgentes e situações de risco começam a surgir. Resolva os problemas antes que seja tarde!
-        <br><br>
-        <small style="color:rgba(255,255,255,0.7)">(Modo RPG: Erros causam dano à sua integridade. Cuidado!)</small>
-      </p>
-      
-      <div class="difficulty-container">
-        <div class="difficulty-label">Nível de Ameaça</div>
-        <div class="difficulty-buttons">
-          <button class="diff-btn selected" data-diff="normal">Normal</button>
-          <button class="diff-btn" data-diff="hard">Difícil</button>
-        </div>
-      </div>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 h-screen overflow-hidden flex flex-col">
 
-      <button id="start-btn" class="btn-primary">Iniciar Plantão</button>
-    </div>
-
-    <!-- Game Screen -->
-    <div id="game-screen" class="screen hidden" style="justify-content: flex-start;">
-      <div id="game-hud">
-        <div class="hud-row">
-          <span class="score-display">XP: <span id="score-val">0</span></span>
-          <div class="hud-controls">
-            <button id="pause-btn" title="Pausar Jogo">⏸️</button>
-          </div>
-        </div>
-        <div class="hud-row" style="margin-top: 5px;">
-           <span class="hp-label" style="flex:1">Integridade do Traje</span>
-        </div>
-        <div class="hp-bar-container">
-          <div id="hp-bar" class="hp-bar-fill"></div>
-        </div>
-      </div>
-      
-      <div id="game-area">
-        <!-- Cards will be injected here -->
-      </div>
-    </div>
-
-    <!-- Pause Modal -->
-    <div id="pause-modal" class="modal-overlay">
-      <div class="modal-content">
-        <h2 style="color:var(--primary); margin-bottom:15px;">Jogo Pausado</h2>
-        <p style="margin-bottom:20px; color:#666;">Respire fundo e organize suas ideias.</p>
-        <button id="resume-btn" class="btn-primary">Retomar</button>
-      </div>
-    </div>
-
-    <!-- Feedback Modal -->
-    <div id="feedback-modal">
-      <div id="feedback-header" class="feedback-header">
-        <!-- Icon and Status -->
-      </div>
-      <p id="feedback-reason" class="feedback-text"></p>
-      <a href="https://ctbio.fiocruz.br/wp-content/uploads/2023/08/Manual-de-Biosseguranca-Laboratorial-Quarta-Ed.-2021-OPAS.pdf" target="_blank" class="source-cite">📖 Ref: Manual de Biossegurança OPAS - Seção 3</a>
-      <button id="next-btn" class="btn-primary">Continuar</button>
-    </div>
-
-    <!-- End Screen -->
-    <div id="end-screen" class="screen hidden" style="text-align: center;">
-      <div id="end-icon" style="font-size: 4rem; margin-bottom: 20px;"></div>
-      <h2 id="end-title" style="color: var(--primary); font-size: 2rem; margin-bottom: 10px;"></h2>
-      <p id="end-msg" style="color: #666; font-size: 1.1rem; margin-bottom: 30px;"></p>
-      <div style="font-size: 2rem; font-weight: bold; color: var(--secondary); margin-bottom: 30px;">
-        XP Final: <span id="final-score">0</span>
-      </div>
-      <button id="restart-btn" class="btn-primary">Novo Plantão</button>
-    </div>
-
+    <!-- Lógica da Aplicação -->
     <script>
-      // === GAME DATA ===
-      const SCENARIOS = [
-        {
-          id: 1,
-          title: "Caso 01: Tuberculose",
-          context: "Você recebeu uma amostra de escarro de um paciente com forte suspeita de tuberculose pulmonar para baciloscopia.",
-          cards: [
-            {
-              type: 'risk',
-              question: "Qual o principal tipo de risco associado a esta amostra?",
-              options: [
-                { id: 'bio', text: "Risco Biológico", isCorrect: true, icon: "☣️" },
-                { id: 'chem', text: "Risco Químico", isCorrect: false, icon: "🧪" },
-                { id: 'phys', text: "Risco Físico", isCorrect: false, icon: "☢️" }
-              ],
-              justification: "O Mycobacterium tuberculosis é um agente biológico patogênico. O risco primário é a inalação de aerossóis contendo o bacilo."
-            },
-            {
-              type: 'level',
-              question: "Qual o Nível de Biossegurança (NB) mínimo recomendado para manipulação da cultura?",
-              options: [
-                { id: 'nb1', text: "NB-1 (Básico)", isCorrect: false },
-                { id: 'nb2', text: "NB-2 (Moderado)", isCorrect: false },
-                { id: 'nb3', text: "NB-3 (Contenção)", isCorrect: true }
-              ],
-              justification: "Embora a baciloscopia direta possa ser feita em NB-2, a cultura e manipulação de concentrações de M. tuberculosis exigem NB-3 devido ao alto risco de transmissão por aerossol."
-            },
-            {
-              type: 'ppe',
-              question: "Qual EPI é indispensável para proteção respiratória neste caso?",
-              options: [
-                { id: 'surg', text: "Máscara Cirúrgica", isCorrect: false },
-                { id: 'n95', text: "Respirador N95 / PFF2", isCorrect: true },
-                { id: 'cloth', text: "Máscara de Tecido", isCorrect: false }
-              ],
-              justification: "Para proteção contra aerossóis biológicos finos, a máscara cirúrgica é insuficiente. O uso de respirador N95/PFF2 é obrigatório."
-            }
-          ]
-        },
-        {
-          id: 2,
-          title: "Caso 02: Derramamento Ácido",
-          context: "Um frasco de Ácido Sulfúrico Concentrado caiu e quebrou na bancada.",
-          cards: [
-            {
-              type: 'risk',
-              question: "Classifique o risco imediato deste acidente:",
-              options: [
-                { id: 'erg', text: "Ergonômico", isCorrect: false, icon: "🧘" },
-                { id: 'chem', text: "Químico", isCorrect: true, icon: "🧪" },
-                { id: 'acc', text: "Mecânico", isCorrect: false, icon: "🔨" }
-              ],
-              justification: "O Ácido Sulfúrico é altamente corrosivo e reativo, caracterizando um risco químico grave de queimaduras e vapores tóxicos."
-            },
-            {
-              type: 'environment',
-              question: "Qual equipamento de proteção coletiva (EPC) deveria ter sido usado na manipulação?",
-              options: [
-                { id: 'bsc', text: "Cabine de Segurança Biológica", isCorrect: false },
-                { id: 'fume', text: "Capela de Exaustão Química", isCorrect: true },
-                { id: 'flux', text: "Fluxo Laminar Horizontal", isCorrect: false }
-              ],
-              justification: "Manipulação de ácidos voláteis ou concentrados deve ser feita sob Capela de Exaustão Química para remover vapores."
-            }
-          ]
-        },
-        {
-          id: 3,
-          title: "Caso 03: Descarte de Agulhas",
-          context: "Após coleta de sangue, você precisa descartar a agulha utilizada.",
-          cards: [
-            {
-              type: 'risk',
-              question: "Onde deve ser feito o descarte correto?",
-              options: [
-                { id: 'trash', text: "Lixo Comum", isCorrect: false, icon: "🗑️" },
-                { id: 'bag', text: "Saco Branco Leitoso", isCorrect: false, icon: "⚪" },
-                { id: 'box', text: "Coletor Perfurocortante", isCorrect: true, icon: "📦" }
-              ],
-              justification: "Agulhas são resíduos do Grupo E (Perfurocortantes) e devem ser descartadas em recipientes rígidos, estanques e identificados (caixa amarela)."
-            }
-          ]
-        },
-        {
-          id: 4,
-          title: "Caso 04: Cultura Celular",
-          context: "Você está realizando a manutenção de uma linhagem de células HeLa na Cabine de Segurança Biológica.",
-          cards: [
-            {
-              type: 'environment',
-              question: "Qual prática compromete a esterilidade e a segurança dentro da Cabine?",
-              options: [
-                { id: 'bunsen', text: "Uso de Bico de Bunsen", isCorrect: true },
-                { id: 'alc', text: "Limpar superfícies com Álcool 70%", isCorrect: false },
-                { id: 'org', text: "Organizar materiais limpo/sujo", isCorrect: false }
-              ],
-              justification: "O uso de Bico de Bunsen em Cabines de Segurança Biológica gera turbulência no fluxo de ar, comprometendo a proteção do produto e do operador."
-            },
-            {
-              type: 'risk',
-              question: "Para evitar contaminação cruzada entre linhagens diferentes, você deve:",
-              options: [
-                { id: 'multi', text: "Manipular várias linhagens juntas", isCorrect: false },
-                { id: 'share', text: "Compartilhar garrafas de meio", isCorrect: false },
-                { id: 'single', text: "Manipular uma linhagem por vez", isCorrect: true }
-              ],
-              justification: "Deve-se manipular apenas uma linhagem celular por vez na cabine, descontaminando a superfície entre os procedimentos para evitar contaminação cruzada."
-            },
-            {
-              type: 'risk',
-              question: "Como deve ser descartado o meio de cultura líquido aspirado?",
-              options: [
-                { id: 'autoclave', text: "Tratar com hipoclorito antes do descarte", isCorrect: true, icon: "🧪" },
-                { id: 'sink', text: "Diretamente na pia", isCorrect: false, icon: "🚰" },
-                { id: 'trash', text: "Lixo comum", isCorrect: false }
-              ],
-              justification: "Resíduos líquidos biológicos devem ser descontaminados quimicamente (ex: Hipoclorito de Sódio a 1%) ou autoclavados antes de serem descartados na rede de esgoto."
-            }
-          ]
-        },
-        {
-          id: 5,
-          title: "CHEFE FINAL: INCIDENTE NB-3",
-          context: "ALERTA VERMELHO! Ocorreu uma quebra de centrífuga contendo um agente viral desconhecido. O alarme disparou e a ventilação falhou. Siga o protocolo.",
-          isBoss: true,
-          cards: [
-            {
-              type: 'risk',
-              question: "A centrífuga acabou de quebrar com um estrondo. O que você faz IMEDIATAMENTE?",
-              options: [
-                { id: 'open', text: "Abro a centrífuga para ver o dano", isCorrect: false },
-                { id: 'stop', text: "Desligo e espero 30 minutos (aerossóis)", isCorrect: true },
-                { id: 'run', text: "Saio correndo da sala sem avisar", isCorrect: false }
-              ],
-              justification: "Em caso de quebra com risco de aerossóis, não abra o equipamento. Desligue e aguarde a sedimentação dos aerossóis (geralmente 30min)."
-            },
-            {
-              type: 'ppe',
-              question: "Após os 30 minutos, você vai entrar para limpar. Qual a proteção respiratória?",
-              options: [
-                { id: 'mask', text: "Máscara Cirúrgica Dupla", isCorrect: false },
-                { id: 'papr', text: "Respirador Motorizado ou N95 Fit-tested", isCorrect: true },
-                { id: 'none', text: "Apenas Face Shield", isCorrect: false }
-              ],
-              justification: "Para um agente desconhecido e alta carga de aerossóis (acidente), a proteção deve ser máxima (N95 validada ou PAPR)."
-            },
-            {
-              type: 'risk',
-              question: "Você encontrou vidro quebrado contaminado. Como remover?",
-              options: [
-                { id: 'hands', text: "Com luvas grossas e as mãos", isCorrect: false },
-                { id: 'forceps', text: "Com pinças ou pá e escova", isCorrect: true },
-                { id: 'paper', text: "Com papel toalha", isCorrect: false }
-              ],
-              justification: "Nunca manipule vidro quebrado diretamente com as mãos, mesmo com luvas. Use pinças ou pá."
-            },
-            {
-              type: 'environment',
-              question: "Qual desinfetante é mais indicado para conter o derramamento viral inicial?",
-              options: [
-                { id: 'water', text: "Água e Sabão", isCorrect: false },
-                { id: 'alcohol', text: "Álcool 70% (volátil)", isCorrect: false },
-                { id: 'hypo', text: "Hipoclorito de Sódio 1% (Água Sanitária)", isCorrect: true }
-              ],
-              justification: "O Hipoclorito é um desinfetante de amplo espectro eficaz para inativação de derramamentos biológicos, seguido de tempo de contato."
-            },
-            {
-              type: 'environment',
-              question: "Onde descartar os papéis e luvas contaminados pelo derramamento?",
-              options: [
-                { id: 'trash', text: "Lixo Comum", isCorrect: false },
-                { id: 'auto-bag', text: "Saco de Autoclavagem (Vermelho/Branco)", isCorrect: true },
-                { id: 'recycl', text: "Reciclável", isCorrect: false }
-              ],
-              justification: "Todo material sólido contaminado deve ir para saco de resíduo biológico infectante para posterior tratamento (autoclave/incineração)."
-            },
-            {
-              type: 'risk',
-              question: "Você sentiu um respingo na pele exposta durante o processo. O que fazer?",
-              options: [
-                { id: 'ignore', text: "Ignorar para não atrasar", isCorrect: false },
-                { id: 'wait', text: "Esperar chegar em casa", isCorrect: false },
-                { id: 'wash', text: "Lavar imediatamente com água e sabão por 15 min", isCorrect: true }
-              ],
-              justification: "Exposição percutânea ou em pele deve ser lavada exaustivamente com água e sabão imediatamente."
-            }
-          ]
-        }
-      ];
-
-      // === CONFIGURATION ===
-      const DIFFICULTIES = {
-        normal: { timeLimit: 15, damageMultiplier: 1.0 },
-        hard: { timeLimit: 10, damageMultiplier: 1.5 }
-      };
-
-      let currentDifficulty = DIFFICULTIES.normal;
-
-      // === GAME STATE ===
-      let currentState = {
-        scenarioIndex: 0,
-        cardIndex: 0,
-        score: 0,
-        health: 100,
-        isGameOver: false,
-        isPaused: false
-      };
-
-      let timerInterval = null;
-      let currentTimerValue = 0;
-
-      // === DOM ELEMENTS ===
-      const introScreen = document.getElementById('intro-screen');
-      const gameScreen = document.getElementById('game-screen');
-      const endScreen = document.getElementById('end-screen');
-      const gameArea = document.getElementById('game-area');
-      const scoreEl = document.getElementById('score-val');
-      const hpBarEl = document.getElementById('hp-bar');
-      const feedbackModal = document.getElementById('feedback-modal');
-      const feedbackHeader = document.getElementById('feedback-header');
-      const feedbackReason = document.getElementById('feedback-reason');
-      const nextBtn = document.getElementById('next-btn');
-      const startBtn = document.getElementById('start-btn');
-      const restartBtn = document.getElementById('restart-btn');
-      const diffButtons = document.querySelectorAll('.diff-btn');
-      const pauseBtn = document.getElementById('pause-btn');
-      const pauseModal = document.getElementById('pause-modal');
-      const resumeBtn = document.getElementById('resume-btn');
-
-      // === EVENT LISTENERS ===
-      if(startBtn) startBtn.addEventListener('click', startGame);
-      if(nextBtn) nextBtn.addEventListener('click', advanceGame);
-      if(restartBtn) restartBtn.addEventListener('click', returnToIntro);
-      if(pauseBtn) pauseBtn.addEventListener('click', togglePause);
-      if(resumeBtn) resumeBtn.addEventListener('click', togglePause);
-
-      // Difficulty Selection Logic
-      diffButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          diffButtons.forEach(b => b.classList.remove('selected'));
-          const target = e.target;
-          target.classList.add('selected');
-          const diffKey = target.getAttribute('data-diff') || 'normal';
-          currentDifficulty = DIFFICULTIES[diffKey];
-        });
-      });
-
-      // === FUNCTIONS ===
-
-      function returnToIntro() {
-        if (timerInterval) clearInterval(timerInterval);
-        endScreen.classList.add('hidden');
-        gameScreen.classList.add('hidden');
-        introScreen.classList.remove('hidden');
-      }
-
-      function togglePause() {
-        currentState.isPaused = !currentState.isPaused;
-
-        if (currentState.isPaused) {
-          pauseModal.classList.add('active');
-          if (timerInterval) clearInterval(timerInterval);
-        } else {
-          pauseModal.classList.remove('active');
-          const timerEl = document.querySelector('.card-timer');
-          if (timerEl) {
-            const justification = SCENARIOS[currentState.scenarioIndex].cards[currentState.cardIndex].justification;
-            const isBoss = SCENARIOS[currentState.scenarioIndex].isBoss;
-            resumeTimer(timerEl, justification, isBoss);
-          }
-        }
-      }
-
-      function startGame() {
-        currentState = {
-          scenarioIndex: 0,
-          cardIndex: 0,
-          score: 0,
-          health: 100,
-          isGameOver: false,
-          isPaused: false
+        // Ícones SVG
+        const ICONS = {
+            droplets: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.8-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></svg>`,
+            activity: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`,
+            thermometer: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>`,
+            testTube: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5h0c-1.4 0-2.5-1.1-2.5-2.5V2"/><path d="M8.5 2h7"/><path d="M14.5 16h-6"/></svg>`,
+            chevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`,
+            arrowLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>`,
+            download: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>`,
+            printer: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>`,
+            pdf: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M4 7V4a2 2 0 0 1 2-2 2 2 0 0 0-2 2"/><path d="M4 7h16"/><path d="M4 7v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7"/><rect width="8" height="5" x="8" y="12" rx="1"/><path d="M10 12v-2a2 2 0 1 1 4 0v2"/></svg>`
         };
-        
-        if (timerInterval) clearInterval(timerInterval);
 
-        updateHUD();
-        
-        introScreen.classList.add('hidden');
-        endScreen.classList.add('hidden');
-        gameScreen.classList.remove('hidden');
-        
-        renderCard();
-      }
+        // Dados dos Protocolos
+        const POP_DATA = [
+            {
+                id: 'pop01',
+                code: 'POP 01',
+                title: 'Manutenção Diária (Limpezas e QC)',
+                icon: ICONS.droplets,
+                colorClass: 'bg-green-100 text-green-700',
+                content: `
+                    <h1>POP 01: MANUTENÇÃO DIÁRIA</h1>
+                    <p><strong>Frequência:</strong> Todos os dias de uso.</p>
+                    <p><strong>Resumo do Fluxo:</strong> Limpeza Inicial &rarr; PQC & ATSS &rarr; Rotina &rarr; Limpeza Final.</p>
 
-      function updateHUD() {
-        if(scoreEl) scoreEl.innerText = currentState.score.toString();
-        if(hpBarEl) {
-          hpBarEl.style.width = `${Math.max(0, currentState.health)}%`;
-          if(currentState.health > 60) {
-            hpBarEl.style.backgroundColor = '#4CAF50';
-          } else if (currentState.health > 30) {
-            hpBarEl.style.backgroundColor = '#FF9800';
-          } else {
-            hpBarEl.style.backgroundColor = '#F44336';
-          }
-        }
-      }
+                    <h3>1. MATERIAIS NECESSÁRIOS</h3>
+                    <ul>
+                        <li><strong>BD CS&T Beads</strong> (4 gotas + 1 mL Flow Filtrado).</li>
+                        <li><strong>Soluções de Limpeza:</strong> BD FACSClean (Hipoclorito), BD Detergent Solution, Água DI.</li>
+                        <li>Tubos 12x75mm.</li>
+                    </ul>
 
-      function renderCard() {
-        if (!gameArea) return;
-        gameArea.innerHTML = '';
+                    <hr>
 
-        const scenario = SCENARIOS[currentState.scenarioIndex];
-        const cardData = scenario.cards[currentState.cardIndex];
+                    <h3>PARTE A: INÍCIO DO TURNO (LIMPEZA INICIAL)</h3>
+                    <p><em>Objetivo: Condicionar o sistema fluídico e remover bolhas antes da calibração.</em></p>
+                    
+                    <h4>A.1. Verificações</h4>
+                    <ul>
+                        <li>Verificar nível do tanque <strong>Sheath</strong> (Encher se necessário) e <strong>Waste</strong> (Esvaziar e adicionar hipoclorito).</li>
+                        <li>Verificar LEDs de status: <strong>Âmbar piscante</strong> indica aquecimento dos lasers (20 min) ou fluido baixo.</li>
+                    </ul>
 
-        const cardEl = document.createElement('div');
-        cardEl.className = 'card slide-in-right';
-        
-        if (scenario.isBoss) {
-          cardEl.classList.add('boss-card');
-        }
-        
-        const headerRow = document.createElement('div');
-        headerRow.className = 'card-header-row';
+                    <h4>A.2. Sequência de Condicionamento (Tube Settings: Flow Rate High)</h4>
+                    <ol>
+                        <li><strong>Detergent Solution:</strong> Adquirir por <strong>1 minuto</strong>.</li>
+                        <li>Executar comando: <strong>3x Clean Cuvette</strong> (com Detergente).</li>
+                        <li><strong>Repouso:</strong> Deixar agir por <strong>10 a 15 minutos</strong> (Sem aquisição).</li>
+                        <li><strong>Água DI:</strong> Adquirir por <strong>1 minuto</strong>.</li>
+                        <li>Executar comando: <strong>3x Clean Cuvette</strong> (com Água).</li>
+                        <li>Executar comando: <strong>3x Purge Sheath Filter</strong> (Remove ar do filtro).</li>
+                        <li>Executar comando: <strong>3x Drain and Fill Flow Cell</strong>.</li>
+                        <li><strong>Estabilização:</strong> Adquirir Água por <strong>10 minutos</strong>.
+                            <br><em>Critério: Variação da taxa (Threshold Rate) < 10 evts/s nos últimos 2 min.</em></li>
+                    </ol>
 
-        const contextEl = document.createElement('span');
-        contextEl.className = 'card-context';
-        contextEl.innerText = scenario.title;
-        
-        const timerEl = document.createElement('span');
-        timerEl.className = 'card-timer';
-        currentTimerValue = currentDifficulty.timeLimit; 
-        timerEl.innerText = `⏳ ${currentTimerValue}s`;
-        
-        headerRow.appendChild(contextEl);
-        headerRow.appendChild(timerEl);
-        cardEl.appendChild(headerRow);
-        
-        if (currentState.cardIndex === 0) {
-           const scenarioIntro = document.createElement('p');
-           scenarioIntro.style.fontSize = '0.9rem';
-           scenarioIntro.style.color = scenario.isBoss ? '#D32F2F' : '#666';
-           scenarioIntro.style.marginBottom = '10px';
-           scenarioIntro.style.fontStyle = 'italic';
-           scenarioIntro.style.fontWeight = scenario.isBoss ? 'bold' : 'normal';
-           scenarioIntro.innerText = scenario.context;
-           cardEl.appendChild(scenarioIntro);
-        }
+                    <hr>
 
-        const questionEl = document.createElement('div');
-        questionEl.className = 'card-question';
-        questionEl.innerText = cardData.question;
+                    <h3>PARTE B: CALIBRAÇÃO (PQC E ATSS)</h3>
+                    
+                    <h4>B.1. Performance QC (PQC)</h4>
+                    <ol>
+                        <li>Preparar tubo com <strong>1 mL Flow Filtrado + 4 gotas CS&T</strong>. Vortexar.</li>
+                        <li>No software: <em>Setup & QC > Performance QC</em>. Conferir Lote.</li>
+                        <li>Rodar. Verificar se resultado é <strong>PASS</strong>.</li>
+                        <li>Checar Relatório: <strong>Delta PMT</strong> (-50 a +50) e <strong>%rCV</strong> (0 a 6 nos canais principais).</li>
+                    </ol>
 
-        const optionsDiv = document.createElement('div');
-        optionsDiv.className = 'card-content';
+                    <h4>B.2. Assay Tube Settings Setup (ATSS)</h4>
+                    <ol>
+                        <li>Imediatamente após o PQC, selecionar <em>Assay/Tube Settings Setup</em>.</li>
+                        <li>Usar o mesmo tubo de CS&T. Rodar para atualizar as voltagens dos ensaios (OneFlow).</li>
+                    </ol>
 
-        cardData.options.forEach(opt => {
-          const btn = document.createElement('button');
-          btn.className = 'option-btn';
-          
-          const iconSpan = document.createElement('span');
-          iconSpan.innerText = opt.icon || '🔹';
-          
-          const textSpan = document.createElement('span');
-          textSpan.innerText = opt.text;
+                    <hr>
 
-          btn.appendChild(iconSpan);
-          btn.appendChild(textSpan);
+                    <h3>PARTE C: FINAL DO TURNO (LIMPEZA FINAL)</h3>
+                    <p><strong style="color: #dc2626;">PERIGO:</strong> NUNCA misture FACSClean (Hipoclorito) direto com Detergente. Use Água entre eles.</p>
+                    
+                    <h4>C.1. Sequência de Lavagem (Modo Manual - High)</h4>
+                    <ol>
+                        <li><strong>PASSO 1: BD FACSClean</strong> - Adquirir 5 minutos.</li>
+                        <li><strong>PASSO 2: ÁGUA</strong> - Adquirir 1 minuto (Obrigatório para enxágue).</li>
+                        <li><strong>PASSO 3: BD DETERGENT SOLUTION</strong> - Adquirir 5 minutos.</li>
+                        <li><strong>PASSO 4: ÁGUA</strong> - Adquirir 5 minutos.</li>
+                    </ol>
 
-          btn.onclick = () => handleAnswer(opt, cardData, cardEl, scenario.isBoss);
-          optionsDiv.appendChild(btn);
-        });
+                    <h4>C.2. Desligamento</h4>
+                    <ol>
+                        <li>Deixar tubo com <strong>2 mL de Água DI</strong> na probe.</li>
+                        <li>Executar <em>Cytometer > Shutdown</em>.</li>
+                    </ol>
 
-        cardEl.appendChild(questionEl);
-        cardEl.appendChild(optionsDiv);
-        
-        gameArea.appendChild(cardEl);
+                    <!-- CHECKLIST -->
+                    <div style="page-break-before: always; margin-top: 30px; padding: 15px; border: 1px solid #ccc;">
+                        <h4 style="text-align: center;">CHECKLIST DIÁRIO</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 5px; width: 40px;">□</td>
+                                <td>Limpeza Inicial (Detergente > Repouso > Água)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px;">□</td>
+                                <td>Purge e Drain/Fill realizados</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px;">□</td>
+                                <td>Estabilização com Água ok</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px;">□</td>
+                                <td>PQC Aprovado</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px;">□</td>
+                                <td>ATSS Atualizado</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px;">□</td>
+                                <td>Limpeza Final (Clean > Água > Detergente > Água)</td>
+                            </tr>
+                        </table>
+                    </div>
+                `
+            },
+            {
+                id: 'pop02',
+                code: 'POP 02',
+                title: 'Manutenção Bimestral (60 Dias)',
+                icon: ICONS.droplets,
+                colorClass: 'bg-blue-100 text-blue-700',
+                content: `
+                    <h1>POP 02: MANUTENÇÃO DE 60 DIAS</h1>
+                    <p><strong>Frequência:</strong> A cada 2 meses.</p>
+                    <p><strong>Resumo do Fluxo:</strong> Limpeza Inicial &rarr; PQC &rarr; URS &rarr; ATSS &rarr; Limpeza Mensal.</p>
 
-        startTimer(timerEl, cardData.justification, scenario.isBoss);
-      }
+                    <h3>1. LIMPEZA INICIAL E PQC</h3>
+                    <p>Realizar todo o procedimento descrito na <strong>Parte A e B.1 do POP 01</strong> (Limpeza de condicionamento e PQC com CS&T).</p>
 
-      function startTimer(displayElement, justification, isBoss) {
-        if (timerInterval) clearInterval(timerInterval);
-        
-        timerInterval = setInterval(() => {
-          if (currentState.isPaused) return;
+                    <h3>2. UPDATE REFERENCE SETTINGS (URS)</h3>
+                    <p><em>Atualização da matriz de compensação espectral e brilho dos fluorocromos.</em></p>
+                    
+                    <h4>2.1. Preparo das FC Beads</h4>
+                    <ul>
+                        <li>Aclimatar sachês por 15 min.</li>
+                        <li>Em tubos separados: <strong>1 gota de FC Bead</strong> + <strong>10 gotas de Diluente</strong> (ou 500 µL).</li>
+                        <li>Vortexar vigorosamente.</li>
+                    </ul>
 
-          currentTimerValue--;
-          displayElement.innerText = `⏳ ${currentTimerValue}s`;
-          
-          if (currentTimerValue <= 5) {
-            displayElement.classList.add('urgent');
-          }
+                    <h4>2.2. Execução no Software</h4>
+                    <ol>
+                        <li>Ir em <em>Setup & QC > Update Reference Settings</em>.</li>
+                        <li>Selecionar a configuração: <strong>Lyse/Wash</strong>.</li>
+                        <li>Se houver lote novo de FC Beads, importar o arquivo na Library antes.</li>
+                        <li>Seguir o assistente e adquirir cada tubo de cor solicitado.</li>
+                        <li>Verificar gráficos: P1 (Beads), P2 (Positivo), P3 (Negativo). Aceitar se "Pass".</li>
+                    </ol>
 
-          if (currentTimerValue <= 0) {
-            clearInterval(timerInterval);
-            handleTimeout(justification, isBoss);
-          }
-        }, 1000);
-      }
+                    <h3>3. ATSS (Assay Tube Settings Setup)</h3>
+                    <p>Após atualizar as referências (URS), rodar novamente o ATSS com as CS&T Beads para recalcular as voltagens dos ensaios com a nova compensação.</p>
 
-      function resumeTimer(displayElement, justification, isBoss) {
-        startTimer(displayElement, justification, isBoss);
-      }
+                    <h3>4. LIMPEZA MENSAL (MONTHLY CLEAN)</h3>
+                    <p><em>Procedimento físico de limpeza das linhas.</em></p>
+                    <p><strong style="color: #dc2626;">CRÍTICO:</strong> Realizar o <strong>BYPASS</strong> do Filtro de Sheath. O filtro de papel é destruído pelo FACSClean.</p>
+                    
+                    <ol>
+                        <li>Esvaziar Waste.</li>
+                        <li><strong>Bypass:</strong> Desconectar o filtro lateral e unir as mangueiras com o conector de união.</li>
+                        <li>Trocar o tanque de Sheath por um tanque com <strong>2 Litros de BD FACSClean</strong>.</li>
+                        <li>No software: <em>Cytometer > Fluidics > Monthly Clean</em>. Seguir o wizard (aprox. 30 min).</li>
+                        <li><strong>Enxágue:</strong> Trocar o tanque de FACSClean pelo tanque de Sheath (Salina) original quando solicitado.</li>
+                        <li>Ao finalizar, <strong>reconectar o Filtro</strong> (atenção à seta de fluxo).</li>
+                        <li>Executar <strong>3x Purge Sheath Filter</strong> para tirar bolhas do filtro.</li>
+                    </ol>
 
-      function handleTimeout(justification, isBoss) {
-        const allBtns = document.querySelectorAll('.option-btn');
-        allBtns.forEach(b => b.disabled = true);
+                    <!-- CHECKLIST -->
+                    <div style="page-break-before: always; margin-top: 30px; padding: 15px; border: 1px solid #ccc;">
+                        <h4 style="text-align: center;">CHECKLIST 60 DIAS</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 5px; width: 40px;">□</td><td>Limpeza Inicial e PQC realizados</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Update Reference Settings (FC Beads) Aprovado</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>ATSS Atualizado pós-URS</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Bypass do filtro realizado antes do Monthly Clean</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Monthly Clean finalizado e Enxágue feito</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Filtro reconectado e Purgado</td></tr>
+                        </table>
+                    </div>
+                `
+            },
+            {
+                id: 'pop03',
+                code: 'POP 03',
+                title: 'Manutenção Semestral',
+                icon: ICONS.droplets,
+                colorClass: 'bg-purple-100 text-purple-700',
+                content: `
+                    <h1>POP 03: MANUTENÇÃO SEMESTRAL</h1>
+                    <p><strong>Frequência:</strong> A cada 6 meses (ou troca de lote de CS&T sem transferência).</p>
+                    <p><strong>Resumo do Fluxo:</strong> Limpeza Inicial &rarr; CQC &rarr; PQC &rarr; URS &rarr; ATSS &rarr; Limpeza Final.</p>
 
-        const damage = 10 * currentDifficulty.damageMultiplier;
-        applyDamage(damage);
+                    <h3>1. LIMPEZA INICIAL</h3>
+                    <p>Executar rigorosamente a limpeza de condicionamento (Detergente/Repouso/Água/Purge/Drain) conforme <strong>POP 01</strong>.</p>
 
-        if(feedbackModal && feedbackHeader && feedbackReason) {
-          feedbackModal.classList.add('active');
-          feedbackHeader.innerHTML = '<span style="font-size:2rem">⌛</span> <span class="wrong">Tempo Esgotado!</span>';
-          feedbackReason.innerText = "A demora expôs você ao risco. -" + Math.ceil(damage) + " HP. " + justification;
-        }
-      }
+                    <h3>2. CHARACTERIZATION QC (CQC)</h3>
+                    <p><em>Define a linha de base do equipamento (Voltagens iniciais, Linearidade, Resolução). Exige nível de acesso Administrador.</em></p>
+                    
+                    <ol>
+                        <li>Preparar CS&T novo: 4 gotas + 1 mL Flow Filtrado.</li>
+                        <li>Ir em <em>Setup & QC > Characterization QC</em>.</li>
+                        <li>Desabilitar "High Sensitivity" se não for utilizado.</li>
+                        <li>Rodar o tubo. O sistema ajustará os ganhos ótimos.</li>
+                    </ol>
 
-      function handleAnswer(option, cardData, cardElement, isBoss) {
-        if (timerInterval) clearInterval(timerInterval);
+                    <h3>3. SEQUÊNCIA DE AJUSTES PÓS-CQC</h3>
+                    <p>Após definir a nova baseline (CQC), é obrigatório atualizar toda a cadeia de configurações:</p>
+                    <ol>
+                        <li><strong>Performance QC (PQC):</strong> Para confirmar que a nova baseline está estável.</li>
+                        <li><strong>Update Reference Settings (URS):</strong> Com FC Beads, para recalcular a matriz de compensação na nova voltagem.</li>
+                        <li><strong>Assay Tube Settings Setup (ATSS):</strong> Com CS&T, para linkar os ensaios à nova configuração.</li>
+                    </ol>
 
-        const allBtns = document.querySelectorAll('.option-btn');
-        allBtns.forEach(b => b.disabled = true);
+                    <h3>4. LIMPEZA FINAL</h3>
+                    <p>Executar a limpeza final padrão (Clean > Água > Detergente > Água) e desligar.</p>
 
-        const isCorrect = option.isCorrect;
-        
-        if (isCorrect) {
-          currentState.score += 150;
-        } else {
-          let baseDamage = 20;
-          if (isBoss) baseDamage = 30;
-          
-          const damage = baseDamage * currentDifficulty.damageMultiplier;
-          applyDamage(damage);
-        }
+                    <!-- CHECKLIST -->
+                    <div style="page-break-before: always; margin-top: 30px; padding: 15px; border: 1px solid #ccc;">
+                        <h4 style="text-align: center;">CHECKLIST SEMESTRAL</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 5px; width: 40px;">□</td><td>Limpeza Inicial Completa</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>CQC (Characterization) Aprovado</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>PQC Aprovado</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Reference Settings (URS) Atualizadas</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>ATSS Atualizado</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Limpeza Final Realizada</td></tr>
+                        </table>
+                    </div>
+                `
+            },
+            {
+                id: 'pop04',
+                code: 'POP 04',
+                title: 'Aquisição de Amostras (OneFlow)',
+                icon: ICONS.testTube,
+                colorClass: 'bg-orange-100 text-orange-700',
+                content: `
+                    <h1>POP 04: AQUISIÇÃO DE AMOSTRAS - ONEFLOW™</h1>
+                    <p><strong>Aplicação:</strong> Imunofenotipagem Linfóide (LST).</p>
 
-        updateHUD();
-        showFeedback(isCorrect, cardData.justification);
-      }
+                    <h3>1. PRECAUÇÕES NA AQUISIÇÃO</h3>
+                    <ul>
+                        <li><strong style="color: #dc2626;">LIMITE DE TAXA:</strong> Ajustar o fluxo para não exceder <strong>30.000 eventos/segundo</strong>. Taxas maiores causam perda de dados (Abort Rate) e entupimento.</li>
+                        <li><strong style="color: #dc2626;">VOLUME MÍNIMO:</strong> Se após as lavagens o volume de amostra for baixo, completar com PBS até atingir 100 µL <em>antes</em> de adicionar ao tubo de marcação seco.</li>
+                    </ul>
 
-      function applyDamage(amount) {
-        currentState.health = Math.max(0, currentState.health - amount);
-        
-        const gameBody = document.body;
-        gameBody.classList.add('shake');
-        setTimeout(() => gameBody.classList.remove('shake'), 500);
-        
-        updateHUD();
-      }
+                    <h3>2. PROCEDIMENTO DE PREPARO</h3>
+                    
+                    <h4>2.1. Lavagem (Remoção de Interferentes)</h4>
+                    <ol>
+                        <li>Em tubo cônico 15 mL: <strong>300 µL amostra</strong> + <strong>10 mL Wash Buffer</strong>.</li>
+                        <li>Centrifugar: <strong>540g por 5 min</strong>. Descartar sobrenadante.</li>
+                        <li>Repetir mais 2 vezes (Total de 3 lavagens).</li>
+                        <li>Ajustar volume final do pellet (aprox. 200 µL).</li>
+                    </ol>
 
-      function showFeedback(isCorrect, justification) {
-        if(!feedbackModal || !feedbackHeader || !feedbackReason) return;
+                    <h4>2.2. Marcação e Lise</h4>
+                    <ol>
+                        <li>Adicionar <strong>100 µL da amostra lavada</strong> no tubo OneFlow LST (contendo reagente seco).</li>
+                        <li>Vortexar. Incubar <strong>30 min</strong> (escuro).</li>
+                        <li>Adicionar <strong>2 mL Lysing Solution (1X)</strong>.</li>
+                        <li>Vortexar. Incubar <strong>10-12 min</strong> (escuro).</li>
+                        <li>Centrifugar (540g/5min), descartar, lavar com 2 mL de Buffer.</li>
+                        <li>Ressuspender em <strong>200 µL</strong> para leitura.</li>
+                    </ol>
 
-        feedbackModal.classList.add('active');
-        
-        if(isCorrect) {
-          feedbackHeader.innerHTML = '<span style="font-size:2rem">✅</span> <span class="correct">Sucesso!</span>';
-        } else {
-          feedbackHeader.innerHTML = '<span style="font-size:2rem">💥</span> <span class="wrong">Dano Recebido!</span>';
-        }
+                    <h3>3. AQUISIÇÃO NO SOFTWARE</h3>
+                    <ol>
+                        <li>Na Worklist, selecionar a tarefa (Task) <strong>OneFlow LST</strong>.</li>
+                        <li>Inserir ID da amostra.</li>
+                        <li>Vortexar o tubo imediatamente antes de colocar na probe.</li>
+                        <li>Clicar em <strong>Run</strong>. Monitorar a taxa de eventos.</li>
+                        <li>Critério de parada padrão: 100.000 eventos totais.</li>
+                    </ol>
 
-        feedbackReason.innerText = justification;
-      }
-
-      function advanceGame() {
-        feedbackModal.classList.remove('active');
-        if (timerInterval) clearInterval(timerInterval);
-
-        if (currentState.health <= 0) {
-          endGame(false);
-          return;
-        }
-
-        const oldCard = document.querySelector('.card');
-        if(oldCard) {
-          oldCard.classList.add('slide-out-left');
-        }
-
-        const currentScenario = SCENARIOS[currentState.scenarioIndex];
-
-        setTimeout(() => {
-          if (currentState.cardIndex < currentScenario.cards.length - 1) {
-            currentState.cardIndex++;
-            renderCard();
-          } else {
-            currentState.scenarioIndex++;
-            currentState.cardIndex = 0;
-
-            if (currentState.scenarioIndex < SCENARIOS.length) {
-              renderCard();
-            } else {
-              endGame(true);
+                    <!-- CHECKLIST -->
+                    <div style="page-break-before: always; margin-top: 30px; padding: 15px; border: 1px solid #ccc;">
+                        <h4 style="text-align: center;">CHECKLIST AQUISIÇÃO</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 5px; width: 40px;">□</td><td>3 Lavagens prévias realizadas</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Incubação de marcação (30min)</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Lise (10-12min) e Lavagem final</td></tr>
+                            <tr><td style="padding: 5px;">□</td><td>Taxa de eventos monitorada (<30.000)</td></tr>
+                        </table>
+                    </div>
+                `
             }
-          }
-        }, 300);
-      }
+        ];
 
-      function endGame(victory) {
-        if (timerInterval) clearInterval(timerInterval);
-        
-        gameScreen.classList.add('hidden');
-        endScreen.classList.remove('hidden');
+        // --- ESTADO DA APLICAÇÃO ---
+        let state = {
+            selectedPopId: null,
+            isMobile: window.innerWidth < 1024
+        };
 
-        const title = document.getElementById('end-title');
-        const msg = document.getElementById('end-msg');
-        const icon = document.getElementById('end-icon');
-        const finalScore = document.getElementById('final-score');
+        const root = document.body;
 
-        if(finalScore) finalScore.innerText = currentState.score.toString();
+        // --- FUNÇÕES PRINCIPAIS ---
 
-        if (victory) {
-          if(title) title.innerText = "Missão Cumprida!";
-          if(msg) msg.innerText = "Você conteve o surto e protegeu o laboratório. A equipe de resgate chegou.";
-          if(icon) icon.innerText = "🎖️";
-          if(title) title.style.color = "var(--success)";
-        } else {
-          if(title) title.innerText = "Contaminação Fatal";
-          if(msg) msg.innerText = "Seu traje foi comprometido. A contenção falhou.";
-          if(icon) icon.innerText = "💀";
-          if(title) title.style.color = "var(--danger)";
+        function init() {
+            window.addEventListener('resize', handleResize);
+            if (!state.isMobile) {
+                state.selectedPopId = POP_DATA[0].id;
+            }
+            render();
         }
-      }
+
+        function handleResize() {
+            const mobile = window.innerWidth < 1024;
+            if (mobile !== state.isMobile) {
+                state.isMobile = mobile;
+                render();
+            }
+        }
+
+        function selectPop(id) {
+            state.selectedPopId = id;
+            render();
+        }
+
+        function goBack() {
+            state.selectedPopId = null;
+            render();
+        }
+
+        function render() {
+            root.innerHTML = '';
+            if (state.isMobile) {
+                if (state.selectedPopId) {
+                    renderMobileDetail();
+                } else {
+                    renderMobileList();
+                }
+            } else {
+                renderDesktop();
+            }
+        }
+
+        // --- RENDERIZADORES ---
+
+        function renderMobileList() {
+            const container = document.createElement('div');
+            container.className = 'h-full bg-gray-50 pb-8 overflow-y-auto w-full';
+
+            const header = document.createElement('div');
+            header.className = 'bg-blue-900 text-white p-6 shadow-md rounded-b-2xl mb-6 sticky top-0 z-10';
+            header.innerHTML = `
+                <h1 class="text-2xl font-bold">Protocolos</h1>
+                <p class="text-blue-200 text-sm">Laboratório de Citometria</p>
+            `;
+            container.appendChild(header);
+
+            const listContainer = document.createElement('div');
+            listContainer.className = 'px-4 space-y-4 pb-12';
+
+            POP_DATA.forEach(pop => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between active:scale-95 transition-transform';
+                btn.onclick = () => selectPop(pop.id);
+                btn.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 rounded-full ${pop.colorClass}">
+                            ${pop.icon}
+                        </div>
+                        <div class="text-left">
+                            <span class="block text-xs font-bold text-gray-400 uppercase tracking-wider">${pop.code}</span>
+                            <span class="block text-lg font-semibold text-gray-800 leading-tight">${pop.title}</span>
+                        </div>
+                    </div>
+                    <div class="text-gray-300">${ICONS.chevronRight}</div>
+                `;
+                listContainer.appendChild(btn);
+            });
+
+            container.appendChild(listContainer);
+            root.appendChild(container);
+        }
+
+        function renderMobileDetail() {
+            const pop = POP_DATA.find(p => p.id === state.selectedPopId);
+            if (!pop) return;
+
+            const container = document.createElement('div');
+            container.className = 'h-full bg-white flex flex-col w-full';
+
+            const topBar = document.createElement('div');
+            topBar.className = 'bg-white border-b border-gray-200 p-4 flex items-center justify-between z-20 shadow-sm flex-shrink-0';
+            
+            const backBtn = document.createElement('button');
+            backBtn.className = 'p-2 hover:bg-gray-100 rounded-full transition-colors';
+            backBtn.innerHTML = `<span class="text-gray-600">${ICONS.arrowLeft}</span>`;
+            backBtn.onclick = goBack;
+
+            const title = document.createElement('span');
+            title.className = 'font-bold text-gray-800 truncate px-2';
+            title.innerText = pop.code;
+
+            const actions = document.createElement('div');
+            actions.className = 'flex space-x-2';
+            
+            const downloadDocBtn = document.createElement('button');
+            downloadDocBtn.className = 'p-2 text-blue-600 hover:bg-blue-50 rounded-full';
+            downloadDocBtn.innerHTML = ICONS.download;
+            downloadDocBtn.title = 'Baixar como DOC';
+            downloadDocBtn.onclick = () => downloadDoc(pop);
+
+            const downloadPdfBtn = document.createElement('button');
+            downloadPdfBtn.className = 'p-2 text-red-600 hover:bg-red-50 rounded-full';
+            downloadPdfBtn.innerHTML = ICONS.pdf;
+            downloadPdfBtn.title = 'Baixar como PDF';
+            downloadPdfBtn.onclick = () => downloadPDF(pop);
+
+            actions.appendChild(downloadDocBtn);
+            actions.appendChild(downloadPdfBtn);
+            
+            topBar.appendChild(backBtn);
+            topBar.appendChild(title);
+            topBar.appendChild(actions);
+            container.appendChild(topBar);
+
+            const content = document.createElement('div');
+            content.className = 'p-6 overflow-y-auto flex-1';
+            content.innerHTML = `
+                <div class="prose prose-sm max-w-none prose-headings:text-blue-900 prose-h3:text-base prose-h3:bg-blue-50 prose-h3:p-2 prose-h3:rounded-lg prose-ul:pl-4">
+                    ${pop.content}
+                </div>
+            `;
+            container.appendChild(content);
+
+            root.appendChild(container);
+        }
+
+        function renderDesktop() {
+            const container = document.createElement('div');
+            container.className = 'flex h-screen bg-gray-100 overflow-hidden w-full';
+
+            const sidebar = document.createElement('div');
+            sidebar.className = 'w-80 bg-white border-r border-gray-200 flex flex-col shadow-xl z-20 flex-shrink-0';
+            
+            const sidebarHeader = document.createElement('div');
+            sidebarHeader.className = 'p-8 bg-blue-900 text-white';
+            sidebarHeader.innerHTML = `
+                <h2 class="font-bold text-2xl">Gerenciador POPs</h2>
+                <p class="text-blue-200 text-sm mt-1">Citometria de Fluxo</p>
+            `;
+            sidebar.appendChild(sidebarHeader);
+
+            const nav = document.createElement('nav');
+            nav.className = 'flex-1 overflow-y-auto p-4 space-y-2';
+
+            POP_DATA.forEach(pop => {
+                const isActive = pop.id === state.selectedPopId;
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-4 rounded-xl transition-all duration-200 group relative flex items-center gap-3 ${
+                    isActive ? 'bg-blue-50 border-blue-200 shadow-sm ring-1 ring-blue-200' : 'hover:bg-gray-50 border border-transparent'
+                }`;
+                btn.onclick = () => selectPop(pop.id);
+                btn.innerHTML = `
+                    <div class="p-2 rounded-lg ${isActive ? 'bg-white text-blue-600 shadow-sm' : 'bg-gray-100 text-gray-400'}">
+                        ${pop.icon}
+                    </div>
+                    <div>
+                        <span class="block text-xs font-bold uppercase tracking-wider ${isActive ? 'text-blue-600' : 'text-gray-400'}">${pop.code}</span>
+                        <span class="block text-sm font-medium ${isActive ? 'text-gray-900' : 'text-gray-600'}">${pop.title}</span>
+                    </div>
+                `;
+                nav.appendChild(btn);
+            });
+            sidebar.appendChild(nav);
+            container.appendChild(sidebar);
+
+            const main = document.createElement('div');
+            main.className = 'flex-1 flex flex-col h-full relative bg-gray-50 min-w-0';
+
+            const pop = POP_DATA.find(p => p.id === state.selectedPopId);
+
+            if (pop) {
+                const topHeader = document.createElement('header');
+                topHeader.className = 'bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between shadow-sm print:hidden flex-shrink-0';
+                
+                const breadcrumb = document.createElement('div');
+                breadcrumb.className = 'flex items-center text-sm text-gray-500';
+                breadcrumb.innerHTML = `
+                    <span>Biblioteca</span>
+                    <span class="mx-2 text-gray-300">${ICONS.chevronRight}</span>
+                    <span class="font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded text-xs uppercase tracking-wide">${pop.code}</span>
+                `;
+
+                const actions = document.createElement('div');
+                actions.className = 'flex space-x-3';
+                
+                const btnPrint = document.createElement('button');
+                btnPrint.className = 'flex items-center px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm font-medium';
+                btnPrint.innerHTML = `<span class="mr-2">${ICONS.printer}</span> Imprimir`;
+                btnPrint.onclick = () => window.print();
+
+                const btnDownloadDoc = document.createElement('button');
+                btnDownloadDoc.className = 'flex items-center px-4 py-2 text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 transition-all shadow-md hover:shadow-lg text-sm font-medium';
+                btnDownloadDoc.innerHTML = `<span class="mr-2">${ICONS.download}</span> Baixar .doc`;
+                btnDownloadDoc.onclick = () => downloadDoc(pop);
+
+                const btnDownloadPdf = document.createElement('button');
+                btnDownloadPdf.className = 'flex items-center px-4 py-2 text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 transition-all shadow-md hover:shadow-lg text-sm font-medium';
+                btnDownloadPdf.innerHTML = `<span class="mr-2">${ICONS.pdf}</span> Baixar .pdf`;
+                btnDownloadPdf.onclick = () => downloadPDF(pop);
+
+                actions.appendChild(btnPrint);
+                actions.appendChild(btnDownloadDoc);
+                actions.appendChild(btnDownloadPdf);
+                
+                topHeader.appendChild(breadcrumb);
+                topHeader.appendChild(actions);
+                main.appendChild(topHeader);
+
+                const scrollArea = document.createElement('div');
+                scrollArea.className = 'flex-1 overflow-y-auto p-8 print:p-0 print:bg-white';
+                
+                const paper = document.createElement('div');
+                paper.className = 'a4-paper print:shadow-none print:m-0 print:w-full';
+                paper.id = 'document-content';
+
+                const docHeader = `
+                    <div class="border-b-2 border-gray-800 pb-4 mb-8 flex justify-between items-end">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-900 leading-none mb-2">${pop.code}</h1>
+                            <p class="text-gray-500 text-sm uppercase tracking-widest font-semibold">Procedimento Operacional Padrão</p>
+                        </div>
+                        <div class="text-right text-xs text-gray-400">
+                            <p>Laboratório de Citometria</p>
+                            <p>${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                `;
+
+                const docBody = `
+                    <div class="prose prose-slate max-w-none 
+                        prose-headings:text-blue-900 
+                        prose-h1:text-2xl 
+                        prose-h3:text-lg prose-h3:uppercase prose-h3:tracking-wide prose-h3:text-blue-800 prose-h3:border-b prose-h3:border-blue-100 prose-h3:pb-2 prose-h3:mt-8
+                        prose-h4:text-base prose-h4:font-bold prose-h4:mt-6 prose-h4:text-gray-800
+                        prose-p:text-justify prose-p:leading-relaxed
+                        prose-li:marker:text-blue-500">
+                        ${pop.content}
+                    </div>
+                `;
+
+                const docFooter = `
+                    <div class="mt-24 pt-8 border-t border-gray-200 grid grid-cols-2 gap-16 print:break-inside-avoid">
+                        <div>
+                            <div class="h-px w-full bg-gray-400 mb-2"></div>
+                            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Elaborado por</p>
+                        </div>
+                        <div>
+                            <div class="h-px w-full bg-gray-400 mb-2"></div>
+                            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Aprovado por (Responsável Técnico)</p>
+                        </div>
+                    </div>
+                `;
+
+                paper.innerHTML = docHeader + docBody + docFooter;
+                scrollArea.appendChild(paper);
+                
+                const spacer = document.createElement('div');
+                spacer.className = 'h-12';
+                scrollArea.appendChild(spacer);
+
+                main.appendChild(scrollArea);
+            }
+
+            container.appendChild(main);
+            root.appendChild(container);
+        }
+
+        // --- FUNÇÃO DOWNLOAD DOC ---
+        function downloadDoc(pop) {
+            // Clonar conteúdo e substituir checkboxes
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = pop.content;
+
+            const checkboxes = tempDiv.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                const span = document.createElement('span');
+                // Caractere Unicode para caixa vazia
+                span.textContent = '☐'; 
+                span.style.fontSize = '14pt';
+                cb.parentNode.replaceChild(span, cb);
+            });
+
+            // CSS INLINE PARA FORMATAR O ARQUIVO WORD
+            const cssStyles = `
+                body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; color: #000000; line-height: 1.5; }
+                h1 { font-size: 18pt; color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 6px; margin-top: 0; margin-bottom: 20px; }
+                h3 { font-size: 13pt; color: #1e3a8a; background-color: #f0f9ff; padding: 5px; margin-top: 24px; margin-bottom: 12px; border-left: 5px solid #1e3a8a; font-weight: bold; }
+                h4 { font-size: 12pt; color: #333; margin-top: 18px; margin-bottom: 8px; font-weight: bold; text-decoration: underline; }
+                p { margin-bottom: 10pt; text-align: justify; }
+                ul, ol { margin-bottom: 12pt; }
+                li { margin-bottom: 4pt; }
+                table { width: 100%; border-collapse: collapse; margin-top: 12px; margin-bottom: 12px; }
+                th, td { border: 1px solid #000; padding: 8px; font-size: 10pt; vertical-align: top; }
+                th { background-color: #e5e7eb; font-weight: bold; text-align: left; }
+                strong { font-weight: bold; }
+                .page-break { page-break-before: always; }
+                hr { border: 0; border-top: 1px solid #ccc; margin: 20px 0; }
+            `;
+
+            const header = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+                      xmlns:w='urn:schemas-microsoft-com:office:word' 
+                      xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>${pop.title}</title>
+                    <style>${cssStyles}</style>
+                </head>
+                <body>
+            `;
+            
+            const docHeader = `
+                <table style="border: none; width: 100%; margin-bottom: 20px;">
+                    <tr>
+                        <td style="border: none;">
+                            <h1 style="border:none; margin:0; font-size: 24pt;">${pop.code}</h1>
+                            <p style="margin:0; color: #666; text-transform: uppercase; font-size: 10pt; font-weight: bold;">Procedimento Operacional Padrão</p>
+                        </td>
+                        <td style="border: none; text-align: right; color: #666; font-size: 9pt;">
+                            <p style="margin:0;">Laboratório de Citometria</p>
+                            <p style="margin:0;">${new Date().toLocaleDateString()}</p>
+                        </td>
+                    </tr>
+                    <tr><td colspan="2" style="border-bottom: 2px solid #000; height: 5px;"></td></tr>
+                </table>
+            `;
+
+            const docFooter = `
+                <br><br><br>
+                <table style="border: none; width: 100%; margin-top: 40px;">
+                    <tr>
+                        <td style="border: none; width: 45%;">
+                            <div style="border-top: 1px solid #000; padding-top: 5px; font-size: 9pt; font-weight: bold;">Elaborado por</div>
+                        </td>
+                        <td style="border: none; width: 10%;"></td>
+                        <td style="border: none; width: 45%;">
+                            <div style="border-top: 1px solid #000; padding-top: 5px; font-size: 9pt; font-weight: bold;">Aprovado por (Responsável Técnico)</div>
+                        </td>
+                    </tr>
+                </table>
+            `;
+
+            const sourceHTML = header + docHeader + tempDiv.innerHTML + docFooter + "</body></html>";
+            
+            const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+            const fileDownload = document.createElement("a");
+            document.body.appendChild(fileDownload);
+            fileDownload.href = source;
+            fileDownload.download = `${pop.code} - ${pop.title}.doc`;
+            fileDownload.click();
+            document.body.removeChild(fileDownload);
+        }
+
+        // --- FUNÇÃO DOWNLOAD PDF ---
+        function downloadPDF(pop) {
+            // Criar elemento temporário para o PDF
+            const pdfContainer = document.createElement('div');
+            pdfContainer.className = 'pdf-content';
+            pdfContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 210mm; padding: 20mm; background: white;';
+            
+            // Substituir checkboxes por caracteres Unicode
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = pop.content;
+            
+            const checkboxes = tempDiv.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                const span = document.createElement('span');
+                span.textContent = '☐';
+                span.className = 'pdf-checkbox';
+                cb.parentNode.replaceChild(span, cb);
+            });
+            
+            // Construir conteúdo do PDF
+            const pdfContent = `
+                <div class="pdf-header">
+                    <h1 style="font-size: 24pt; margin: 0 0 5px 0;">${pop.code}</h1>
+                    <p style="font-size: 12pt; color: #666; margin: 0 0 15px 0; text-transform: uppercase; font-weight: bold;">Procedimento Operacional Padrão</p>
+                    <div style="display: flex; justify-content: space-between; font-size: 9pt; color: #666;">
+                        <div>
+                            <p style="margin: 0;">Laboratório de Citometria</p>
+                            <p style="margin: 0;">${pop.title}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="margin: 0;">Data: ${new Date().toLocaleDateString()}</p>
+                            <p style="margin: 0;">Versão: 1.0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                ${tempDiv.innerHTML}
+                
+                <div class="pdf-footer">
+                    <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+                        <div style="width: 45%;">
+                            <div style="border-top: 1px solid #000; padding-top: 5px; margin-top: 20px;">
+                                <p style="font-size: 9pt; font-weight: bold; margin: 0;">Elaborado por:</p>
+                                <p style="font-size: 9pt; margin: 5px 0 0 0;">_________________________________</p>
+                                <p style="font-size: 8pt; margin: 2px 0 0 0;">Nome, Assinatura e Data</p>
+                            </div>
+                        </div>
+                        <div style="width: 10%;"></div>
+                        <div style="width: 45%;">
+                            <div style="border-top: 1px solid #000; padding-top: 5px; margin-top: 20px;">
+                                <p style="font-size: 9pt; font-weight: bold; margin: 0;">Aprovado por (Responsável Técnico):</p>
+                                <p style="font-size: 9pt; margin: 5px 0 0 0;">_________________________________</p>
+                                <p style="font-size: 8pt; margin: 2px 0 0 0;">Nome, Assinatura e Data</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            pdfContainer.innerHTML = pdfContent;
+            document.body.appendChild(pdfContainer);
+            
+            // Configurações do PDF
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `${pop.code} - ${pop.title}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    letterRendering: true,
+                    width: pdfContainer.offsetWidth
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait',
+                    compress: true
+                }
+            };
+            
+            // Gerar PDF
+            html2pdf().set(opt).from(pdfContainer).save().then(() => {
+                // Remover elemento temporário
+                document.body.removeChild(pdfContainer);
+            });
+        }
+
+        init();
+
     </script>
-  </body>
+</body>
 </html>
